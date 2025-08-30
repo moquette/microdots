@@ -20,8 +20,9 @@ Welcome to the future of dotfiles.
 
 ## ⚡ Lightning Quick Start
 
-```bash
 # One command install the microdots system -- follow the prompts
+
+```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/moquette/microdots/main/core/setup)"
 ```
 
