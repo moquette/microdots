@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+
+# Setup log file
+LOG_FILE=~/Desktop/install.log
+exec > >(tee -a "$LOG_FILE")
+exec 2>&1
+
+# Log header
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Dotfiles Installation Log"
+echo "Date: $(date)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# Colors for output (only for terminal, not log)
+if [ -t 1 ]; then
+    GREEN='\033[0;32m'
+    BLUE='\033[0;34m'
+    YELLOW='\033[1;33m'
+    CYAN='\033[0;36m'
+    RED='\033[0;31m'
+    NC='\033[0m'
+else
+    GREEN=''
+    BLUE=''
+    YELLOW=''
+    CYAN=''
+    RED=''
+    NC=''
+fi
+
+# Cancel function
+cancel_install() {
+    echo -e "\n${RED}❌ Installation cancelled${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Installation cancelled at: $(date)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    exit 0
+}
+
+# Set non-interactive mode for Homebrew
+export NONINTERACTIVE=1
+
+# Authentication first
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}🔐 Microdots Installation${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}Homebrew and system configuration requires administrator access.${NC}"
+echo -e "${CYAN}Please enter your password to continue:${NC}"
+sudo -v
+if [ $? -ne 0 ]; then
+    echo -e "${RED}❌ Authentication failed or cancelled${NC}"
+    exit 1
+fi
+
+# Keep sudo alive in background
+while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+SUDO_PID=$!
+
+echo -e "${GREEN}✅ Authentication successful${NC}\n"
+
+# Now ask for local path
+if [ -n "$1" ]; then
+    LOCAL_DOTS="$1"
+    echo -e "${YELLOW}📍 Using provided path: $LOCAL_DOTS${NC}\n"
+    LOCAL_LINE="LOCAL_DOTS=\"$LOCAL_DOTS\""
+else
+    # Local configuration header
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}📁 Local Configuration Path${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[1] ~/.dotlocal (default)${NC}"
+    echo -e "${CYAN}[2] No local configurations${NC}"
+    echo -e "${CYAN}[3] Custom path${NC}"
+    echo -e "${CYAN}[C] Cancel installation${NC}"
+    echo -e "${CYAN}Choice [1]: ${NC}\c"
+    read -r response
+    
+    case "$response" in
+        [Cc])
+            kill $SUDO_PID 2>/dev/null
+            cancel_install
+            ;;
+        2)
+            LOCAL_DOTS=""
+            LOCAL_LINE="# LOCAL_DOTS=\"\$HOME/.dotlocal\""
+            echo -e "${YELLOW}⚠ Local configurations disabled${NC}\n"
+            ;;
+        3)
+            echo -e "${CYAN}Enter custom path: ${NC}\c"
+            read -r custom_path
+            if [[ -z "$custom_path" || "$custom_path" == "cancel" ]]; then
+                kill $SUDO_PID 2>/dev/null
+                cancel_install
+            fi
+            LOCAL_DOTS="$custom_path"
+            LOCAL_LINE="LOCAL_DOTS=\"$custom_path\""
+            echo -e "${GREEN}✓ Using custom path: $custom_path${NC}\n"
+            ;;
+        1|"")
+            LOCAL_DOTS="~/.dotlocal"
+            LOCAL_LINE="LOCAL_DOTS=\"\$HOME/.dotlocal\""
+            echo -e "${GREEN}✓ Using default: ~/.dotlocal${NC}\n"
+            ;;
+        *)
+            LOCAL_DOTS="~/.dotlocal"
+            LOCAL_LINE="LOCAL_DOTS=\"\$HOME/.dotlocal\""
+            echo -e "${GREEN}✓ Using default: ~/.dotlocal${NC}\n"
+            ;;
+    esac
+fi
+
+# GitHub configuration collection
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}🔧 GitHub Configuration${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}Enter your GitHub author name: ${NC}\c"
+read -r git_authorname
+echo -e "${CYAN}Enter your GitHub author email: ${NC}\c"
+read -r git_authoremail
+echo -e "${GREEN}✓ GitHub information collected${NC}\n"
+
+echo -e "${YELLOW}Starting installation...${NC}\n"
+
+# Clone the microdots repository to ~/.dotfiles
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}🔄 Cloning microdots repository...${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+git clone https://github.com/moquette/microdots.git ~/.dotfiles
+if [ $? -ne 0 ]; then
+    kill $SUDO_PID 2>/dev/null
+    echo -e "${RED}❌ Failed to clone repository${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✅ Repository cloned successfully!${NC}\n"
+
+# Write the configuration to ~/.dotfiles/dotfiles.conf
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}📝 Writing configuration file...${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+cat > ~/.dotfiles/dotfiles.conf << EOF
+# Dotfiles Configuration
+# This file specifies where your private/local configurations are stored
+#
+# ⚠️  IMPORTANT VALIDATION RULES:
+# - Only use ONE method (multiple LOCAL_PATH lines will cause an error)
+# - Only set VARIABLES (no commands like 'ln -s' or 'mkdir')
+# - Comments must start with # (uncommented commands will block operations)
+#
+# See dotfiles.conf.example for all available options and detailed documentation
+# Local configuration directory
+$LOCAL_LINE
+EOF
+echo -e "${GREEN}✅ Configuration written to ~/.dotfiles/dotfiles.conf${NC}\n"
+
+# Pre-stage GitHub configuration
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}📝 Pre-staging GitHub configuration...${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# Determine credential helper based on OS
+git_credential='cache'
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  git_credential='osxkeychain'
+fi
+
+# Use the existing template to create the gitconfig
+if [ -f ~/.dotfiles/git/gitconfig.local.symlink.example ]; then
+  sed -e "s/AUTHORNAME/$git_authorname/g" \
+      -e "s/AUTHOREMAIL/$git_authoremail/g" \
+      -e "s/GIT_CREDENTIAL_HELPER/$git_credential/g" \
+      ~/.dotfiles/git/gitconfig.local.symlink.example > \
+      ~/.dotfiles/git/gitconfig.local.symlink
+  echo -e "${GREEN}✅ GitHub configuration pre-staged successfully${NC}"
+  echo -e "${CYAN}   Name: $git_authorname${NC}"
+  echo -e "${CYAN}   Email: $git_authoremail${NC}\n"
+else
+  echo -e "${YELLOW}⚠ Template not found, bootstrap will prompt for GitHub info${NC}\n"
+fi
+
+# Run the bootstrap install (NONINTERACTIVE is already set)
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}🚀 Bootstrapping dotfiles installation...${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+~/.dotfiles/core/dots bootstrap --install
+
+# Kill the sudo keep-alive background process
+kill $SUDO_PID 2>/dev/null
+
+echo -e "${GREEN}✅ Bootstrap completed!${NC}\n"
+
+# Shell reload section - fixed for zsh compatibility
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}🔄 Shell configuration complete${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}✅ Please restart your terminal or run: source ~/.zshrc${NC}\n"
+
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}🎉 Dotfiles setup complete!${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# Log footer
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Installation completed at: $(date)"
+if [ -n "$LOCAL_DOTS" ]; then
+    echo "Local directory: $LOCAL_DOTS"
+else
+    echo "Local directory: DISABLED"
+fi
+echo "Log saved to: $LOG_FILE"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

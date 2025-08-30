@@ -1,0 +1,88 @@
+# Example Brewfile - Copy to ~/.dotlocal/homebrew/Brewfile and customize
+# This is a template showing common package categories
+# Uncomment and modify based on your needs
+
+cask_args appdir: '/Applications'
+
+# Core Tools (often needed)
+# brew 'git'                          # Version control
+# brew 'coreutils'                    # GNU core utilities (for gls, etc.)
+# brew 'findutils'                    # GNU find, xargs, locate
+# brew 'gnu-sed'                      # GNU sed
+# brew 'gawk'                         # GNU awk
+# brew 'wget'                         # Internet file retriever
+
+# Modern CLI Tools
+# brew 'ripgrep'                      # Fast grep alternative (rg)
+# brew 'fd'                           # Fast find alternative
+# brew 'bat'                          # Better cat with syntax highlighting
+# brew 'eza'                          # Better ls with git integration
+# brew 'zoxide'                       # Smarter cd that learns your habits
+# brew 'fzf'                          # Fuzzy finder for everything
+# brew 'jq'                           # JSON processor
+# brew 'yq'                           # YAML processor
+
+# Development Languages
+# brew 'node'                         # JavaScript runtime
+# brew 'python@3.11'                  # Python programming language
+# brew 'go'                           # Go programming language
+# brew 'rust'                         # Rust programming language
+
+# Package Managers
+# brew 'yarn'                         # JavaScript package manager
+# brew 'pnpm'                         # Fast, disk space efficient package manager
+# brew 'poetry'                       # Python dependency management
+
+# Development Tools
+# brew 'gh'                           # GitHub CLI
+# brew 'hub'                          # GitHub from the command line
+# brew 'lazygit'                      # Terminal UI for git
+# brew 'neovim'                       # Vim-fork text editor
+# brew 'tmux'                         # Terminal multiplexer
+# brew 'direnv'                       # Load/unload environment variables
+
+# Docker & Kubernetes
+# brew 'docker'                       # Container platform
+# brew 'docker-compose'               # Multi-container orchestration
+# brew 'kubectl'                      # Kubernetes CLI
+# brew 'helm'                         # Kubernetes package manager
+# brew 'k9s'                          # Kubernetes TUI
+
+# Database Tools
+# brew 'postgresql@14'                # PostgreSQL database
+# brew 'mysql'                        # MySQL database
+# brew 'redis'                        # In-memory data structure store
+# brew 'sqlite'                       # Small, fast SQL database
+
+# Network Tools
+# brew 'curl'                         # Transfer data from URLs
+# brew 'httpie'                       # User-friendly HTTP client
+# brew 'nmap'                         # Network exploration tool
+# brew 'mtr'                          # Network diagnostic tool
+
+# System Monitoring
+# brew 'htop'                         # Interactive process viewer
+# brew 'btop'                         # Resource monitor
+# brew 'ncdu'                         # Disk usage analyzer
+
+# macOS-specific Tools
+# brew 'mas'                          # Mac App Store CLI
+# brew 'trash'                        # Move files to trash
+
+# Casks (GUI Applications)
+# cask 'visual-studio-code'           # Code editor
+# cask 'iterm2'                       # Terminal emulator
+# cask 'warp'                         # Modern terminal
+# cask 'docker'                       # Docker Desktop
+# cask 'firefox'                      # Web browser
+# cask 'chrome'                       # Web browser
+# cask 'slack'                        # Team communication
+# cask 'notion'                       # Note-taking
+# cask 'obsidian'                     # Knowledge base
+# cask 'raycast'                      # Productivity tool
+# cask 'rectangle'                    # Window management
+
+# Fonts (requires tap 'homebrew/cask-fonts')
+# cask 'font-fira-code'               # Programming font with ligatures
+# cask 'font-jetbrains-mono'          # JetBrains programming font
+# cask 'font-cascadia-code'           # Microsoft programming font

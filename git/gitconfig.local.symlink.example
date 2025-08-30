@@ -1,0 +1,67 @@
+# Git Local Configuration Template
+# This file is created by bootstrap on first run
+# Copy this to ~/.gitconfig.local and customize
+
+# REQUIRED: User identification
+[user]
+        name = AUTHORNAME
+        email = AUTHOREMAIL
+
+# REQUIRED: Credential helper (set by bootstrap based on OS)
+[credential]
+        helper = GIT_CREDENTIAL_HELPER
+
+# OPTIONAL: Add your personal preferences below
+# Uncomment and modify any settings you want
+
+# Color preferences
+# [color]
+#         diff = auto
+#         status = auto  
+#         branch = auto
+#         ui = true
+#         interactive = auto
+
+# Aliases - add your favorites
+# [alias]
+#         co = checkout
+#         br = branch
+#         ci = commit
+#         st = status
+#         lg = log --graph --pretty=format:'%C(yellow)%h%C(reset) %C(blue)%d%C(reset) %s %C(green)(%cr)%C(reset) %C(dim)%an%C(reset)'
+
+# Pull strategy (rebase vs merge)
+# [pull]
+#         rebase = true  # or false if you prefer merge
+
+# Push preferences
+# [push]
+#         autoSetupRemote = true  # automatically set upstream
+
+# Diff and merge tools
+# [diff]
+#         tool = vimdiff
+# [merge]
+#         tool = vimdiff
+# [mergetool]
+#         keepBackup = false
+# [difftool]
+#         prompt = false
+
+# Help and autocorrect
+# [help]
+#         autocorrect = 1  # auto-run correct command after 0.1 sec
+
+# Whitespace handling
+# [apply]
+#         whitespace = nowarn  # or fix, or error
+
+# Commit signing
+# [commit]
+#         gpgsign = true
+# [user]
+#         signingkey = YOUR_GPG_KEY
+
+# Custom settings for specific repos
+# [includeIf "gitdir:~/work/"]
+#         path = ~/.gitconfig-work

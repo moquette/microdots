@@ -1,0 +1,306 @@
+#!/usr/bin/env bash
+#
+# dots relink - Recreate all symlinks with local precedence
+# Refactored to use unified UI style
+#
+
+set -e
+
+# Get the dotfiles root directory
+DOTFILES_ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
+CORE_DIR="$DOTFILES_ROOT/core"
+
+# Source libraries
+source "$CORE_DIR/lib/ui.sh"
+source "$CORE_DIR/lib/validate-config.sh"
+
+# Load LOCAL_DOTS from dotfiles.conf if it exists
+LOCAL_DOTS=""
+if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+    # Source only variable assignments, not commands
+    eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
+fi
+
+# Parse options
+dry_run=false
+force=false
+clean=false
+verbose=false
+
+while test $# -gt 0; do
+  case "$1" in
+    --dry-run)
+      dry_run=true
+      ;;
+    --force)
+      force=true
+      ;;
+    --clean)
+      clean=true
+      ;;
+    --verbose)
+      verbose=true
+      ;;
+    --help)
+      header "📎 Dots Relink"
+      blank
+      info "Recreate all dotfile symlinks with local precedence"
+      blank
+      subheader "Usage"
+      info "  dots relink [options]"
+      blank
+      subheader "Options"
+      list_item "--dry-run    Show what would be done without making changes"
+      list_item "--force      Force overwrite existing files/symlinks"
+      list_item "--clean      Clean broken symlinks before relinking"
+      list_item "--verbose    Show detailed output"
+      list_item "--help       Show this help message"
+      blank
+      subheader "Precedence Order"
+      info "  1. Local configs (from \$LOCAL_DOTS if set)"
+      info "  2. Public configs (from \$DOTFILES_ROOT)"
+      blank
+      exit 0
+      ;;
+    *)
+      error "Unknown option: $1"
+      info "Run 'dots relink --help' for usage"
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+# Main execution
+header "📎 Dotfiles Relink"
+
+# Validate configuration
+subheader "Configuration Validation"
+progress "Validating configuration"
+
+if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+    # Check for dangerous patterns before sourcing
+    if grep -q "^[^#]*ln -s" "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null; then
+        error "Uncommented 'ln -s' command found in dotfiles.conf"
+        error "This would execute when the config is sourced"
+        grep -n "^[^#]*ln -s" "$DOTFILES_ROOT/dotfiles.conf" | while read -r line; do
+            indent "Line $line" 2
+        done
+        error "Comment out or remove these lines before proceeding"
+        exit 1
+    fi
+fi
+
+if ! validate_configuration; then
+    error "Configuration errors detected"
+    info "Run 'dots status' for details about the configuration issues"
+    info "Fix the issues in dotfiles.conf and try again"
+    exit 1
+fi
+
+success "Configuration valid"
+
+# Show current configuration
+subheader "Environment"
+key_value "DOTFILES_ROOT" "$DOTFILES_ROOT"
+if [[ -n "$LOCAL_DOTS" ]]; then
+    key_value "LOCAL_DOTS" "$LOCAL_DOTS"
+else
+    key_value "LOCAL_DOTS" "Not configured"
+fi
+
+# Create or update .local symlink if LOCAL_DOTS is set
+if [[ -n "$LOCAL_DOTS" ]]; then
+    # Expand tilde in LOCAL_DOTS path
+    LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
+    LOCAL_SYMLINK_PATH="$DOTFILES_ROOT/.local"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        info "[dry-run] Would create/update .local symlink → $LOCAL_DOTS"
+    else
+        # Check if the local dots directory exists
+        if [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
+            # Create symlink if it doesn't exist
+            if [ ! -e "$LOCAL_SYMLINK_PATH" ]; then
+                ln -sfn "$LOCAL_DOTS_EXPANDED" "$LOCAL_SYMLINK_PATH"
+                success "Created .local symlink → $LOCAL_DOTS"
+            elif [ -L "$LOCAL_SYMLINK_PATH" ]; then
+                # Update existing symlink if it points to wrong location
+                current_target=$(readlink "$LOCAL_SYMLINK_PATH")
+                if [ "$current_target" != "$LOCAL_DOTS_EXPANDED" ]; then
+                    ln -sfn "$LOCAL_DOTS_EXPANDED" "$LOCAL_SYMLINK_PATH"
+                    success "Updated .local symlink → $LOCAL_DOTS"
+                else
+                    [[ "$verbose" == "true" ]] && info ".local symlink already correct"
+                fi
+            else
+                warning "$LOCAL_SYMLINK_PATH exists but is not a symlink"
+            fi
+        else
+            warning "LOCAL_DOTS is set but directory does not exist: $LOCAL_DOTS"
+        fi
+    fi
+fi
+
+# Clean broken symlinks if requested
+if [[ "$clean" == "true" ]]; then
+    subheader "Cleanup"
+    progress "Cleaning broken symlinks"
+    
+    # Source symlink functions
+    source "$CORE_DIR/lib/symlink.sh"
+    
+    broken_count=0
+    while IFS= read -r symlink; do
+        if [[ ! -e "$symlink" ]]; then
+            if [[ "$dry_run" == "true" ]]; then
+                info "[dry-run] Would remove broken symlink: $symlink"
+            else
+                rm "$symlink"
+                [[ "$verbose" == "true" ]] && list_item "Removed: $(basename "$symlink")"
+            fi
+            broken_count=$((broken_count + 1))
+        fi
+    done < <(find "$HOME" -maxdepth 1 -type l -name ".*" 2>/dev/null)
+    
+    if [[ $broken_count -gt 0 ]]; then
+        success "Cleaned $broken_count broken symlinks"
+    else
+        info "No broken symlinks found"
+    fi
+fi
+
+# Create all symlinks with precedence
+subheader "Symlink Creation"
+
+# Track counters
+public_count=0
+local_count=0
+skip_count=0
+
+# Helper function for creating symlinks with UI
+create_symlink_ui() {
+    local source="$1"
+    local target="$2"
+    local is_local="$3"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        info "[dry-run] Would link $(basename "$target") → $source"
+        return 0
+    fi
+    
+    # Create symlink
+    if [[ "$force" == "true" ]] || [[ ! -e "$target" && ! -L "$target" ]]; then
+        # Remove existing to ensure clean replacement
+        if [[ -e "$target" || -L "$target" ]]; then
+            rm -rf "$target"
+        fi
+        
+        # Create parent directory if needed
+        local parent_dir=$(dirname "$target")
+        [[ ! -d "$parent_dir" ]] && mkdir -p "$parent_dir"
+        
+        if ln -s "$source" "$target"; then
+            if [[ "$verbose" == "true" ]]; then
+                if [[ "$is_local" == "true" ]]; then
+                    list_item "$(basename "$target") → [LOCAL] $(basename "$(dirname "$source")")/$(basename "$source")"
+                else
+                    list_item "$(basename "$target") → $(basename "$(dirname "$source")")/$(basename "$source")"
+                fi
+            fi
+            return 0
+        else
+            error "Failed to link: $target"
+            return 1
+        fi
+    else
+        return 2  # Already exists
+    fi
+}
+
+# Source symlink helper functions
+source "$CORE_DIR/lib/symlink.sh"
+
+# Process public configs first
+if [[ "$dry_run" == "true" ]]; then
+    info "Processing public configurations (dry-run)"
+else
+    progress "Processing public configurations"
+fi
+
+if [[ -d "$DOTFILES_ROOT" ]]; then
+    while IFS= read -r source; do
+        should_exclude "$source" && continue
+        
+        target=$(get_symlink_target "$source")
+        
+        # Skip if local version exists (will be handled in phase 2)
+        if [[ -n "$LOCAL_DOTS" ]]; then
+            # Expand tilde in LOCAL_DOTS path
+            LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
+            if [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
+                relative_path="${source#$DOTFILES_ROOT/}"
+                local_equivalent="$LOCAL_DOTS_EXPANDED/${relative_path}"
+                if [[ -f "$local_equivalent" ]]; then
+                    skip_count=$((skip_count + 1))
+                    [[ "$verbose" == "true" ]] && indent "Skipped $(basename "$target") (has local override)"
+                    continue
+                fi
+            fi
+        fi
+        
+        if create_symlink_ui "$source" "$target" false; then
+            public_count=$((public_count + 1))
+        fi
+    done < <(find "$DOTFILES_ROOT" -name "*.symlink" -not -path "*/.local/*" -not -path "*/.dotlocal/*" 2>/dev/null)
+fi
+
+[[ "$dry_run" == "false" ]] && success "Public configurations linked: $public_count"
+
+# Process local configs second (they override)
+if [[ -n "$LOCAL_DOTS" ]]; then
+    # Expand tilde in LOCAL_DOTS path
+    LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
+    if [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
+    if [[ "$dry_run" == "true" ]]; then
+        info "Processing local overrides (dry-run)"
+    else
+        progress "Processing local overrides"
+    fi
+    
+    while IFS= read -r source; do
+        should_exclude "$source" && continue
+        
+        target=$(get_symlink_target "$source")
+        # Force mode for local - they always override
+        if create_symlink_ui "$source" "$target" true; then
+            local_count=$((local_count + 1))
+        fi
+    done < <(find "$LOCAL_DOTS_EXPANDED" -name "*.symlink" 2>/dev/null)
+    
+    [[ "$dry_run" == "false" ]] && success "Local overrides linked: $local_count"
+    else
+        [[ "$dry_run" == "false" ]] && info "Local directory does not exist"
+    fi
+else
+    [[ "$dry_run" == "false" ]] && info "No local folder configured"
+fi
+
+# Summary
+if [[ "$dry_run" == "false" ]]; then
+    blank
+    summary "Relink" $((public_count + local_count)) 0 0
+    
+    if [[ $skip_count -gt 0 ]]; then
+        info "Skipped $skip_count public configs (have local overrides)"
+    fi
+else
+    blank
+    separator
+    info "Dry-run complete. No changes were made."
+    blank
+    info "Would create:"
+    list_item "Public configs: $public_count"
+    list_item "Local overrides: $local_count"
+    [[ $skip_count -gt 0 ]] && list_item "Skip (have local): $skip_count"
+fi

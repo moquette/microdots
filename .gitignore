@@ -1,0 +1,59 @@
+# Local folders - never commit (common names)
+# IMPORTANT: These match both directories AND symlinks
+.local
+local
+private
+secrets
+personal
+vault
+mine
+
+# Generated directories
+backups/
+snapshots/
+logs/
+
+# Configuration file (user's personal config)
+dotfiles.conf
+
+# Internal planning documents
+TASKS.md
+TODO.md
+NOTES.md
+
+# Documentation archives (internal reference only)
+docs/archives/
+
+# Test archives (old/broken tests)
+tests/archived/
+
+
+# System files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# Local overrides
+*.local
+**/gitconfig.local.symlink
+.env
+
+# Claude Code settings (user-specific permissions)
+.claude/
+.claude/settings.local.json
+system/localrc.symlink
+
+# Homebrew
+Brewfile.lock.json
+# Test artifacts (keep tests, exclude output)
+tests/*_REPORT.md
+tests/tmp/
+tests/coverage/
+tests/.cache/
+

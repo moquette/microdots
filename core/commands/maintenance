@@ -1,0 +1,518 @@
+#!/usr/bin/env bash
+#
+# Maintenance command for dotfiles system
+# Performs regular maintenance tasks like pulling updates, cleaning, and health checks
+
+set -euo pipefail
+
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/common.sh"
+
+# Load LOCAL_DOTS from dotfiles.conf if it exists
+DOTFILES_ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
+DOTFILES_DIR="$DOTFILES_ROOT"  # For compatibility
+LOCAL_DOTS=""
+if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+    # Source only variable assignments, not commands
+    eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
+fi
+
+# Don't override the UI library header function
+
+# Don't define local functions - use the UI library
+
+# Track statistics
+TASKS_RUN=0
+TASKS_SUCCESSFUL=0
+TASKS_FAILED=0
+TASKS_SKIPPED=0
+
+# Helper function to run maintenance tasks with proper formatting
+run_task() {
+    local description="$1"
+    shift
+    local command=("$@")
+    
+    TASKS_RUN=$((TASKS_RUN + 1))
+    
+    # Dry run mode
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        info "[dry-run] ${description} → ${command[*]}"
+        TASKS_SKIPPED=$((TASKS_SKIPPED + 1))
+        return 0
+    fi
+    
+    # Execute command and capture output
+    local output
+    local exit_code=0
+    
+    if output=$("${command[@]}" 2>&1); then
+        success "${description}"
+        TASKS_SUCCESSFUL=$((TASKS_SUCCESSFUL + 1))
+    else
+        exit_code=$?
+        error "${description}"
+        if [[ -n "${output:-}" ]]; then
+            error "  └─ Error: ${output}"
+        fi
+        TASKS_FAILED=$((TASKS_FAILED + 1))
+    fi
+    
+    return ${exit_code}
+}
+
+# Function to check if there are uncommitted changes
+has_uncommitted_changes() {
+    local repo_dir="$1"
+    git -C "$repo_dir" diff --quiet && git -C "$repo_dir" diff --cached --quiet
+    return $?
+}
+
+# Clean function - removes temporary files and broken symlinks
+run_clean() {
+    subheader "🧹 Cleaning temporary files and broken symlinks"
+    
+    local ds_store_count=0
+    local broken_link_count=0
+    local temp_file_count=0
+    local cache_cleaned=false
+    
+    # Clean .DS_Store files
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        ds_store_count=$(find "$DOTFILES_DIR" -name ".DS_Store" -type f 2>/dev/null | wc -l | tr -d ' ')
+        info "[dry-run] Would remove ${ds_store_count} .DS_Store files"
+    else
+        ds_store_count=$(find "$DOTFILES_DIR" -name ".DS_Store" -type f -delete -print 2>/dev/null | wc -l | tr -d ' ')
+    fi
+    
+    # Clean temp files
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        temp_file_count=$(find "$DOTFILES_DIR" -type f \( -name "*.bak" -o -name "*.orig" -o -name "*.tmp" -o -name "*~" \) 2>/dev/null | wc -l | tr -d ' ')
+        info "[dry-run] Would remove ${temp_file_count} temporary files"
+    else
+        temp_file_count=$(find "$DOTFILES_DIR" -type f \( -name "*.bak" -o -name "*.orig" -o -name "*.tmp" -o -name "*~" \) -delete -print 2>/dev/null | wc -l | tr -d ' ')
+    fi
+    
+    # Clean broken symlinks in home directory
+    while IFS= read -r link; do
+        if [[ "${DRY_RUN:-false}" == "true" ]]; then
+            info "[dry-run] Would remove broken symlink: $link"
+        else
+            rm -f "$link"
+        fi
+        ((broken_link_count++))
+    done < <(find "$HOME" -maxdepth 1 -type l ! -exec test -e {} \; -print 2>/dev/null | grep -v ".Trash" || true)
+    
+    # Clean dotfiles cache
+    if [[ -d "$HOME/.cache/dotfiles" ]]; then
+        if [[ "${DRY_RUN:-false}" == "true" ]]; then
+            info "[dry-run] Would clean dotfiles cache directory"
+        else
+            rm -rf "$HOME/.cache/dotfiles"/*
+            cache_cleaned=true
+        fi
+    fi
+    
+    # Report results
+    local total=$((ds_store_count + broken_link_count + temp_file_count))
+    if [[ $total -eq 0 ]] && [[ "$cache_cleaned" == "false" ]]; then
+        info "No cleanup needed"
+    else
+        success "Cleaned: ${ds_store_count} .DS_Store, ${broken_link_count} broken symlinks, ${temp_file_count} temp files"
+        if [[ "$cache_cleaned" == "true" ]]; then
+            success "Cleared dotfiles cache"
+        fi
+    fi
+}
+
+# Repository sync function
+sync_repository() {
+    local repo_dir="$1"
+    local repo_name="$2"
+    
+    if [[ ! -d "$repo_dir/.git" ]]; then
+        warning "Skipping ${repo_name}: not a git repository"
+        TASKS_SKIPPED=$((TASKS_SKIPPED + 1))
+        return 0
+    fi
+    
+    # Check for uncommitted changes
+    if ! has_uncommitted_changes "$repo_dir"; then
+        warning "Skipping ${repo_name}: uncommitted changes detected"
+        TASKS_SKIPPED=$((TASKS_SKIPPED + 1))
+        return 0
+    fi
+    
+    # Fetch and check for updates
+    git -C "$repo_dir" fetch --quiet
+    
+    local LOCAL=$(git -C "$repo_dir" rev-parse @)
+    local REMOTE=$(git -C "$repo_dir" rev-parse @{u} 2>/dev/null || echo "")
+    
+    if [[ -z "$REMOTE" ]]; then
+        info "${repo_name}: no upstream configured"
+        TASKS_SKIPPED=$((TASKS_SKIPPED + 1))
+        return 0
+    fi
+    
+    if [[ "$LOCAL" == "$REMOTE" ]]; then
+        success "${repo_name}: already up to date"
+        TASKS_SUCCESSFUL=$((TASKS_SUCCESSFUL + 1))
+    else
+        if run_task "Updating ${repo_name}" git -C "$repo_dir" pull --rebase --autostash; then
+            # Show what was updated
+            local commits_behind=$(git -C "$repo_dir" rev-list --count ${LOCAL}..${REMOTE})
+            info "  └─ Updated ${commits_behind} commit(s)"
+        fi
+    fi
+}
+
+# Homebrew maintenance
+run_homebrew_maintenance() {
+    subheader "🍺 Homebrew maintenance"
+    
+    if ! command -v brew >/dev/null 2>&1; then
+        error "Homebrew not installed"
+        return 1
+    fi
+    
+    # Set up Homebrew environment
+    eval "$(brew shellenv)"
+    
+    # Update Homebrew
+    run_task "Updating Homebrew formulae" brew update
+    
+    # Check for outdated packages
+    local outdated_count=$(brew outdated --quiet | wc -l | tr -d ' ')
+    if [[ $outdated_count -gt 0 ]]; then
+        info "Found ${outdated_count} outdated package(s)"
+        
+        # Show outdated packages
+        info "Outdated packages:"
+        brew outdated --verbose | sed 's/^/  /'
+        
+        # Upgrade packages
+        run_task "Upgrading packages" brew upgrade
+    else
+        success "All packages up to date"
+        TASKS_SUCCESSFUL=$((TASKS_SUCCESSFUL + 1))
+    fi
+    
+    # Remove orphaned dependencies
+    run_task "Removing orphaned dependencies" brew autoremove
+    
+    # Clean up old versions
+    local cleanup_size=$(brew cleanup -n 2>/dev/null | grep "Would remove:" | cut -d: -f2 | xargs)
+    if [[ -n "$cleanup_size" ]]; then
+        run_task "Cleaning Homebrew cache (${cleanup_size})" brew cleanup
+    else
+        info "Homebrew cache already clean"
+    fi
+    
+    # Validate Brewfile if it exists
+    if [[ -f "$DOTFILES_DIR/homebrew/Brewfile" ]]; then
+        echo
+        info "Checking Brewfile dependencies..."
+        if brew bundle check --file="$DOTFILES_DIR/homebrew/Brewfile" >/dev/null 2>&1; then
+            success "All Brewfile dependencies installed"
+            TASKS_SUCCESSFUL=$((TASKS_SUCCESSFUL + 1))
+        else
+            warning "Missing Brewfile dependencies detected"
+            info "Run 'dots install' to install missing packages"
+            TASKS_FAILED=$((TASKS_FAILED + 1))
+        fi
+    fi
+}
+
+# Check symlinks health
+check_symlinks() {
+    subheader "🔗 Checking symlink health"
+    
+    local broken_count=0
+    local outdated_count=0
+    local missing_count=0
+    
+    # Check for broken symlinks
+    while IFS= read -r link; do
+        ((broken_count++))
+        if [[ "${VERBOSE:-false}" == "true" ]]; then
+            warning "Broken symlink: $link"
+        fi
+    done < <(find "$HOME" -maxdepth 1 -type l ! -exec test -e {} \; -print 2>/dev/null | grep -v ".Trash" || true)
+    
+    # Check if symlinks need updating
+    source "${SCRIPT_DIR}/../lib/symlink.sh"
+    
+    # Count symlinks that need updating
+    for src in $(find "$DOTFILES_DIR" -name '*.symlink' 2>/dev/null); do
+        local base=$(basename "${src%.*}")
+        local dst="$HOME/.$base"
+        
+        # Check if there's a local override
+        local relative_path="${src#$DOTFILES_DIR/}"
+        local local_override=""
+        if [[ -n "$LOCAL_DOTS" ]]; then
+            # Expand tilde in LOCAL_DOTS path
+            local LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
+            if [[ -f "$LOCAL_DOTS_EXPANDED/${relative_path}" ]]; then
+                local_override="$LOCAL_DOTS_EXPANDED/${relative_path}"
+            fi
+        fi
+        
+        if [[ ! -e "$dst" ]]; then
+            ((missing_count++))
+            if [[ "${VERBOSE:-false}" == "true" ]]; then
+                warning "Missing symlink: .$base"
+            fi
+        elif [[ -L "$dst" ]]; then
+            local current_target=$(readlink "$dst")
+            local expected_target="$src"
+            
+            # If there's a local override, that should be the target
+            if [[ -n "$local_override" ]]; then
+                expected_target="$local_override"
+            fi
+            
+            if [[ "$current_target" != "$expected_target" ]]; then
+                ((outdated_count++))
+                if [[ "${VERBOSE:-false}" == "true" ]]; then
+                    warning "Outdated symlink: .$base (points to: $current_target, should be: $expected_target)"
+                fi
+            fi
+        fi
+    done
+    
+    # Report results
+    if [[ $broken_count -eq 0 ]] && [[ $outdated_count -eq 0 ]] && [[ $missing_count -eq 0 ]]; then
+        success "All symlinks healthy"
+        TASKS_SUCCESSFUL=$((TASKS_SUCCESSFUL + 1))
+    else
+        if [[ $broken_count -gt 0 ]]; then
+            warning "Found ${broken_count} broken symlink(s)"
+        fi
+        if [[ $missing_count -gt 0 ]]; then
+            warning "Found ${missing_count} missing symlink(s)"
+        fi
+        if [[ $outdated_count -gt 0 ]]; then
+            warning "Found ${outdated_count} outdated symlink(s)"
+        fi
+        info "Run 'dots relink' to fix symlink issues"
+        TASKS_FAILED=$((TASKS_FAILED + 1))
+    fi
+}
+
+# MCP sync if available
+sync_mcp_config() {
+    if [[ -f "$DOTFILES_DIR/mcp/mcp.zsh" ]]; then
+        subheader "🤖 Syncing MCP configuration"
+        
+        # Source MCP functions
+        source "$DOTFILES_DIR/mcp/mcp.zsh"
+        
+        # Check if mcp-sync function exists
+        if type mcp-sync >/dev/null 2>&1; then
+            if mcp-sync >/dev/null 2>&1; then
+                success "MCP configuration synced"
+                TASKS_SUCCESSFUL=$((TASKS_SUCCESSFUL + 1))
+            else
+                warning "MCP sync failed"
+                TASKS_FAILED=$((TASKS_FAILED + 1))
+            fi
+        else
+            warning "MCP sync function not available"
+            TASKS_SKIPPED=$((TASKS_SKIPPED + 1))
+        fi
+    fi
+}
+
+# System health checks
+run_health_checks() {
+    subheader "🏥 System health checks"
+    
+    # Check disk space
+    local disk_usage=$(df -h "$HOME" | awk 'NR==2 {print $5}' | sed 's/%//')
+    if [[ $disk_usage -gt 90 ]]; then
+        error "Disk space critical: ${disk_usage}% used"
+        TASKS_FAILED=$((TASKS_FAILED + 1))
+    elif [[ $disk_usage -gt 80 ]]; then
+        warning "Disk space warning: ${disk_usage}% used"
+        TASKS_FAILED=$((TASKS_FAILED + 1))
+    else
+        success "Disk space healthy: ${disk_usage}% used"
+        TASKS_SUCCESSFUL=$((TASKS_SUCCESSFUL + 1))
+    fi
+    
+    # Check shell configuration
+    if [[ -f "$HOME/.zshrc" ]] && grep -q "export ZSH=" "$HOME/.zshrc"; then
+        success "Shell configuration intact"
+        TASKS_SUCCESSFUL=$((TASKS_SUCCESSFUL + 1))
+    else
+        error "Shell configuration missing or invalid"
+        TASKS_FAILED=$((TASKS_FAILED + 1))
+    fi
+    
+    # Check critical environment variables
+    local env_ok=true
+    for var in HOME USER DOTFILES_DIR; do
+        if [[ -z "${!var:-}" ]]; then
+            error "Missing environment variable: $var"
+            env_ok=false
+            TASKS_FAILED=$((TASKS_FAILED + 1))
+        fi
+    done
+    
+    if [[ "$env_ok" == "true" ]]; then
+        success "Environment variables configured"
+        TASKS_SUCCESSFUL=$((TASKS_SUCCESSFUL + 1))
+    fi
+}
+
+# Main maintenance function
+main() {
+    local START_TIME=$(date +%s)
+    
+    # Parse arguments
+    local QUICK_MODE=false
+    local FULL_MODE=false
+    local CLEAN_ONLY=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --quick|-q)
+                QUICK_MODE=true
+                shift
+                ;;
+            --full|-f)
+                FULL_MODE=true
+                shift
+                ;;
+            --clean)
+                CLEAN_ONLY=true
+                shift
+                ;;
+            --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            --verbose|-v)
+                VERBOSE=true
+                shift
+                ;;
+            --help|-h)
+                cat << EOF
+Usage: dots maintenance [OPTIONS]
+
+Perform maintenance tasks on the dotfiles system
+
+Options:
+    --quick, -q     Quick maintenance (skip Homebrew updates)
+    --full, -f      Full maintenance (include all optional tasks)
+    --clean         Only run cleanup tasks
+    --dry-run       Show what would be done without making changes
+    --verbose, -v   Show detailed output
+    --help, -h      Show this help message
+
+Tasks performed:
+    - Clean temporary files and broken symlinks
+    - Sync dotfiles repository
+    - Sync dotlocal repository (if exists)
+    - Update Homebrew and packages (unless --quick)
+    - Check symlink health
+    - Sync MCP configuration
+    - Run system health checks
+
+Examples:
+    dots maintenance          # Standard maintenance
+    dots maintenance --quick  # Skip Homebrew updates
+    dots maintenance --full   # Include all optional tasks
+    dots maintenance --clean  # Only cleanup tasks
+EOF
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                info "Run 'dots maintenance --help' for usage"
+                exit 1
+                ;;
+        esac
+    done
+    
+    header "🔧 Dotfiles Maintenance"
+    
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        warning "DRY RUN MODE - No changes will be made"
+        echo
+    fi
+    
+    # Clean tasks
+    run_clean
+    
+    if [[ "$CLEAN_ONLY" == "true" ]]; then
+        echo
+        info "Clean-only mode complete"
+        exit 0
+    fi
+    
+    # Repository sync
+    subheader "📦 Syncing repositories"
+    
+    TASKS_RUN=$((TASKS_RUN + 1))
+    sync_repository "$DOTFILES_DIR" ".dotfiles"
+    
+    # Sync dotlocal if it exists
+    if [[ -n "${DOTLOCAL_DIR:-}" ]] && [[ -d "$DOTLOCAL_DIR/.git" ]]; then
+        TASKS_RUN=$((TASKS_RUN + 1))
+        sync_repository "$DOTLOCAL_DIR" ".dotlocal"
+    fi
+    
+    # Homebrew maintenance (skip in quick mode)
+    if [[ "$QUICK_MODE" != "true" ]]; then
+        run_homebrew_maintenance
+    else
+        info "Skipping Homebrew updates (quick mode)"
+    fi
+    
+    # Check symlinks
+    check_symlinks
+    
+    # MCP sync
+    sync_mcp_config
+    
+    # Health checks
+    run_health_checks
+    
+    # Calculate elapsed time
+    local END_TIME=$(date +%s)
+    local ELAPSED=$((END_TIME - START_TIME))
+    local MINUTES=$((ELAPSED / 60))
+    local SECONDS=$((ELAPSED % 60))
+    
+    # Summary
+    echo
+    header "📊 Maintenance Summary"
+    
+    info "Tasks run: ${TASKS_RUN}"
+    success "Successful: ${TASKS_SUCCESSFUL}"
+    if [[ $TASKS_FAILED -gt 0 ]]; then
+        error "Failed: ${TASKS_FAILED}"
+    fi
+    if [[ $TASKS_SKIPPED -gt 0 ]]; then
+        warning "Skipped: ${TASKS_SKIPPED}"
+    fi
+    
+    echo
+    if [[ $MINUTES -gt 0 ]]; then
+        info "Completed in ${MINUTES}m ${SECONDS}s"
+    else
+        info "Completed in ${SECONDS}s"
+    fi
+    
+    # Exit with error if any tasks failed
+    if [[ $TASKS_FAILED -gt 0 ]]; then
+        exit 1
+    fi
+}
+
+# Run main function
+main "$@"

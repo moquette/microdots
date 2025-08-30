@@ -1,0 +1,23 @@
+# Minimal Git Configuration - Unopinionated foundation
+# All personal preferences go in ~/.gitconfig.local
+
+# ESSENTIAL: Include user's local configuration
+# This is where user name, email, and personal preferences live
+[include]
+        path = ~/.gitconfig.local
+
+# ESSENTIAL: Point to global gitignore (if it exists)
+[core]
+        excludesfile = ~/.gitignore
+
+# SENSIBLE DEFAULTS: These prevent Git warnings and follow Git's own recommendations
+[push]
+        # Git 2.0+ default - prevents accidental pushes to wrong branch
+        default = simple
+
+[init]
+        # Industry standard default branch name (GitHub, GitLab, Bitbucket)
+        defaultBranch = main
+
+# That's it! Everything else should go in your local config
+# This keeps the public config minimal and unopinionated

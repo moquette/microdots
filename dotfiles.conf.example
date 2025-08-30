@@ -1,0 +1,147 @@
+################################################################################
+# DOTFILES CONFIGURATION TEMPLATE
+#
+# This file documents all available configuration options for the dotfiles system.
+# Copy this file to 'dotfiles.conf' and customize for your machine.
+#
+# ⚠️  CRITICAL VALIDATION RULES - READ BEFORE EDITING:
+#
+# 1. ONLY USE ONE LOCAL_DOTS DEFINITION
+#    Multiple LOCAL_DOTS definitions will cause a BLOCKING ERROR
+#    The system will refuse to run with multiple definitions
+#
+# 2. ONLY SET VARIABLES - NO COMMANDS
+#    This file is SOURCED by shell scripts - commands WILL execute!
+#    Commands like 'ln -s', 'mkdir', etc. will cause BLOCKING ERRORS
+#
+# 3. ALL LINES MUST BE COMMENTS OR VARIABLE ASSIGNMENTS
+#    Format: VARIABLE_NAME="value" or # comment
+#    Invalid: any shell commands, function definitions, etc.
+#
+# 4. VALIDATION IS ENFORCED
+#    'dots relink' and other commands will FAIL if validation errors exist
+#    Run 'dots status' to check configuration validity
+#
+################################################################################
+
+# ==============================================================================
+# LOCAL/PRIVATE CONFIGURATION PATH
+# ==============================================================================
+#
+# This specifies where your private configurations are stored (SSH keys, tokens, etc.)
+# These files override public dotfiles when both exist
+#
+# ⚠️  CHOOSE ONLY ONE OPTION - Multiple definitions will cause an error!
+
+# ------------------------------------------------------------------------------
+# Option 1: Hidden directory in home (RECOMMENDED)
+# ------------------------------------------------------------------------------
+# Simple, portable, and works on all systems
+# LOCAL_DOTS="$HOME/.dotlocal"
+
+# ------------------------------------------------------------------------------
+# Option 2: Cloud storage - iCloud Drive
+# ------------------------------------------------------------------------------
+# Syncs across Mac devices automatically
+# LOCAL_DOTS="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Dotlocal"
+
+# ------------------------------------------------------------------------------
+# Option 3: Cloud storage - Dropbox
+# ------------------------------------------------------------------------------
+# Cross-platform cloud sync
+# LOCAL_DOTS="$HOME/Dropbox/Dotlocal"
+
+# ------------------------------------------------------------------------------
+# Option 4: External drive or network location
+# ------------------------------------------------------------------------------
+# For sensitive data that should stay off the main system
+# LOCAL_DOTS="/Volumes/SecureDrive/dotlocal"
+# LOCAL_DOTS="/Volumes/NAS/dotlocal"
+
+# ------------------------------------------------------------------------------
+# Option 5: Symlink method (advanced)
+# ------------------------------------------------------------------------------
+# If you prefer to manage the symlink manually, don't set LOCAL_DOTS at all
+# Instead, create the symlink yourself:
+# ln -s /your/custom/path ~/.dotfiles/.local
+#
+# ⚠️  WARNING: Do NOT put the ln command in this file!
+# Execute it separately in your terminal
+
+# ==============================================================================
+# BACKUP CONFIGURATION (Optional)
+# ==============================================================================
+
+# Backup directory for snapshots and archives
+# BACKUP_PATH="/Volumes/Backup/Dotfiles"
+
+# Automatic daily snapshots
+# AUTO_SNAPSHOT="true"                    # Enable automatic daily snapshots
+# AUTO_SNAPSHOT_KEEP="10"                 # Number of auto-snapshots to keep  
+# AUTO_SNAPSHOT_SILENT="true"             # Run silently unless errors occur
+
+# ==============================================================================
+# CUSTOM ENVIRONMENT VARIABLES (Optional)
+# ==============================================================================
+#
+# Add machine-specific environment variables here
+# These are loaded early in the shell initialization process
+
+# Development
+# PROJECTS="$HOME/Code"                   # Override default project directory
+# EDITOR="nvim"                          # Override default editor
+
+# Tool Configuration
+# HOMEBREW_PREFIX="/opt/homebrew"        # Custom Homebrew location
+# DOCKER_HOST="tcp://localhost:2375"     # Custom Docker daemon
+
+# Feature Flags
+# ENABLE_EXPERIMENTAL="true"             # Enable experimental features
+# DEBUG_MODE="false"                     # Disable debug output
+
+# ==============================================================================
+# VALIDATION EXAMPLES - WHAT NOT TO DO
+# ==============================================================================
+#
+# ❌ WRONG - Multiple LOCAL_DOTS definitions (causes BLOCKING ERROR):
+# LOCAL_DOTS="$HOME/.dotlocal"
+# LOCAL_DOTS="$HOME/Dropbox/dotlocal"    # ERROR: Duplicate definition!
+#
+# ❌ WRONG - Shell commands (causes BLOCKING ERROR):
+# mkdir -p $HOME/.dotlocal                # ERROR: Command execution!
+# ln -s $HOME/.dotlocal ~/.dotfiles/.local # ERROR: Command execution!
+# source ~/.localrc                       # ERROR: Command execution!
+#
+# ❌ WRONG - Function definitions (causes issues):
+# setup_local() {                         # ERROR: Not a variable!
+#   echo "Setting up..."
+# }
+#
+# ✅ CORRECT - Single variable definitions:
+# LOCAL_DOTS="$HOME/.dotlocal"
+# BACKUP_PATH="/Volumes/Backup"
+# MY_CUSTOM_VAR="value"
+#
+# ✅ CORRECT - Commented out options:
+# # LOCAL_DOTS="$HOME/.dotlocal"
+# # This is a comment and won't be processed
+#
+# ==============================================================================
+# VALIDATION COMMANDS
+# ==============================================================================
+#
+# Check configuration validity:
+#   dots status                 # Shows current configuration and validation
+#
+# Test configuration changes:
+#   dots relink --dry-run       # Preview changes without applying
+#
+# Apply configuration:
+#   dots relink                 # Apply configuration (fails if invalid)
+#
+# Debug configuration issues:
+#   ~/.dotfiles/core/lib/validate-config.sh  # Run validation directly
+#
+################################################################################
+# END OF CONFIGURATION
+################################################################################

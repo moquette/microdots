@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+#
+# dots status - Show dotfiles system configuration and status
+#
+
+set -e
+
+# Get the dotfiles root directory
+DOTFILES_ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
+CORE_DIR="$DOTFILES_ROOT/core"
+
+# Source libraries
+source "$CORE_DIR/lib/common.sh"
+source "$CORE_DIR/lib/validate-config.sh"
+
+# Load LOCAL_DOTS from dotfiles.conf if it exists
+LOCAL_DOTS=""
+if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+    # Source only variable assignments, not commands
+    eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
+fi
+
+# Parse options
+show_symlinks=false
+verbose=false
+
+while test $# -gt 0; do
+  case "$1" in
+    --symlinks|-s)
+      show_symlinks=true
+      ;;
+    --verbose|-v)
+      verbose=true
+      ;;
+    --help)
+      cat <<EOF
+dots status - Show dotfiles system configuration and status
+
+Usage: dots status [options]
+
+Options:
+  -s, --symlinks    Show all managed symlinks
+  -v, --verbose     Show detailed information
+  --help           Show this help message
+
+Shows the current dotfiles configuration including:
+  - Dotfiles root directory
+  - Local configuration directory (if configured)
+  - Configuration method (config file, symlink, directory)
+  - Current symlink status
+
+EOF
+      exit 0
+      ;;
+    *)
+      error "Unknown option: $1"
+      info "Run 'dots status --help' for usage"
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+header "📊 Dotfiles System Status"
+
+# Basic configuration
+subheader "Core Configuration"
+key_value "DOTFILES_ROOT" "$DOTFILES_ROOT"
+
+# Check for dotfiles.conf
+if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+    key_value "Config file" "Present"
+    if [[ "$verbose" == "true" ]]; then
+        if [[ -n "${LOCAL_PATH:-}" ]]; then
+            indent "LOCAL_PATH: $LOCAL_PATH" 2
+        fi
+        if [[ -n "${BACKUP_PATH:-}" ]]; then
+            indent "BACKUP_PATH: $BACKUP_PATH" 2
+        fi
+    fi
+else
+    key_value "Config file" "Not found"
+fi
+
+blank
+subheader "Local Configuration"
+
+# Local directory status
+if [[ -n "$LOCAL_DOTS" ]]; then
+    # Expand tilde in LOCAL_DOTS path
+    LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
+    key_value "LOCAL_DOTS" "$LOCAL_DOTS"
+    
+    if [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
+        key_value "Status" "Active"
+        if [[ "$verbose" == "true" ]]; then
+            # Count symlink files in local
+            local_symlink_count=$(find "$LOCAL_DOTS_EXPANDED" -name "*.symlink" 2>/dev/null | wc -l | tr -d ' ')
+            key_value "Symlink files" "$local_symlink_count"
+            
+            # Check for important local files
+            info "Key files:"
+            [[ -f "$LOCAL_DOTS_EXPANDED/localrc.symlink" ]] && list_item "localrc.symlink"
+            [[ -d "$LOCAL_DOTS_EXPANDED/shell" ]] && list_item "shell/"
+            [[ -d "$LOCAL_DOTS_EXPANDED/bin" ]] && list_item "bin/"
+            [[ -d "$LOCAL_DOTS_EXPANDED/ssh.symlink" ]] && list_item "ssh.symlink/"
+        fi
+    else
+        key_value "Status" "Directory not found"
+        warning "Local directory configured but does not exist: $LOCAL_DOTS"
+    fi
+else
+    key_value "LOCAL_DOTS" "Not configured"
+    key_value "Status" "Using public configs only"
+fi
+
+# Check for symlink at ~/.dotfiles/.local
+blank
+subheader "Symlink Status"
+if [[ -L "$DOTFILES_ROOT/.local" ]]; then
+    target=$(readlink "$DOTFILES_ROOT/.local")
+    info "~/.dotfiles/.local → $target"
+    if [[ ! -d "$target" ]]; then
+        warning "  Symlink target does not exist!"
+    fi
+elif [[ -d "$DOTFILES_ROOT/.local" ]]; then
+    warning "~/.dotfiles/.local: Regular directory (not a symlink)"
+else
+    info "~/.dotfiles/.local: Not present"
+fi
+
+# Check ~/.dotlocal directory
+if [[ -d "$HOME/.dotlocal" ]]; then
+    info "~/.dotlocal: Directory exists"
+    if [[ "$LOCAL_DOTS" == "$HOME/.dotlocal" ]]; then
+        indent "Status: Currently in use" 2
+    else
+        indent "Status: Present but not in use" 2
+    fi
+fi
+
+# Show managed symlinks if requested
+if [[ "$show_symlinks" == "true" ]]; then
+    blank
+    source "$CORE_DIR/lib/symlink.sh"
+    list_managed_symlinks "$DOTFILES_ROOT" "$LOCAL_DOTS"
+fi
+
+# Summary
+blank
+subheader "Summary"
+if [[ -n "$LOCAL_DOTS" ]] && [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
+    success "Local overrides are ACTIVE from: $LOCAL_DOTS"
+    info "Run 'dots relink' to refresh symlinks with local precedence"
+else
+    info "Using public configurations only"
+    info "To enable local overrides:"
+    info "  1. Create a local directory: mkdir ~/.dotlocal"
+    info "  2. Add your private configs with .symlink extension"
+    info "  3. Run 'dots relink' to apply changes"
+fi
+
+blank
+
+# Configuration Validation
+subheader "Configuration Validation"
+if validate_configuration >/dev/null 2>&1; then
+    success "No issues detected"
+else
+    blank
+    validate_configuration 2>&1 | sed 's/^/  /'
+fi
+
+blank

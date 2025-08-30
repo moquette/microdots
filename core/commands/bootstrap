@@ -1,0 +1,267 @@
+#!/usr/bin/env bash
+#
+# dots bootstrap - Initial system setup
+# Sets up gitconfig, installs symlinks, and optionally runs installers
+#
+
+set -e
+
+# Get the dotfiles root directory
+DOTFILES_ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
+CORE_DIR="$DOTFILES_ROOT/core"
+
+# Source common functions
+source "$CORE_DIR/lib/common.sh"
+
+# Parse command line flags
+run_install=false
+while test $# -gt 0; do
+  case "$1" in
+    --install)
+      run_install=true
+      ;;
+    *)
+      ;;
+  esac
+  shift
+done
+
+header "🔧 Dotfiles Bootstrap"
+
+# User input function for interactive prompts
+user() {
+  prompt "$1"
+  echo ""  # Add newline after prompt
+}
+
+setup_gitconfig() {
+  # Check for existing gitconfig in local directory first
+  local local_gitconfig="$DOTFILES_ROOT/.local/git/gitconfig.local.symlink"
+  local public_gitconfig="$DOTFILES_ROOT/git/gitconfig.local.symlink"
+  
+  if [ -f "$local_gitconfig" ]; then
+    success "Git user configuration found in local"
+  elif [ -f "$public_gitconfig" ]; then
+    success "gitconfig already configured"
+  else
+    progress "Setting up gitconfig"
+
+    git_credential='cache'
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      git_credential='osxkeychain'
+    fi
+
+    user " - What is your github author name?"
+    read -r -e git_authorname
+    user " - What is your github author email?"
+    read -r -e git_authoremail
+
+    sed -e "s/AUTHORNAME/$git_authorname/g" \
+        -e "s/AUTHOREMAIL/$git_authoremail/g" \
+        -e "s/GIT_CREDENTIAL_HELPER/$git_credential/g" \
+        "$DOTFILES_ROOT/git/gitconfig.local.symlink.example" > \
+        "$public_gitconfig"
+
+    success "gitconfig configured"
+  fi
+}
+
+
+link_file() {
+  local src=$1 dst=$2
+  local overwrite= backup= skip=
+  local action=
+
+  if [ -f "$dst" -o -d "$dst" -o -L "$dst" ]; then
+
+    if [[ "$overwrite_all" == "false" ]] && [[ "$backup_all" == "false" ]] && [[ "$skip_all" == "false" ]]; then
+
+      # Use readlink without -f for macOS compatibility
+      local currentSrc="$(readlink "$dst" 2>/dev/null || echo "")"
+
+      if [[ "$currentSrc" == "$src" ]]; then
+        skip=true;
+      else
+        warning "File already exists: $dst ($(basename "$src"))"
+        prompt "What do you want to do? [s]kip, [S]kip all, [o]verwrite, [O]verwrite all, [b]ackup, [B]ackup all?"
+        read -r -n 1 action
+        blank
+
+        case "$action" in
+          o )
+            overwrite=true;;
+          O )
+            overwrite_all=true;;
+          b )
+            backup=true;;
+          B )
+            backup_all=true;;
+          s )
+            skip=true;;
+          S )
+            skip_all=true;;
+          * )
+            ;;
+        esac
+      fi
+    fi
+
+    overwrite=${overwrite:-$overwrite_all}
+    backup=${backup:-$backup_all}
+    skip=${skip:-$skip_all}
+
+    if [[ "$overwrite" == "true" ]]; then
+      rm -rf "$dst"
+      success "Removed $dst"
+    fi
+
+    if [[ "$backup" == "true" ]]; then
+      mv "$dst" "${dst}.backup"
+      success "Moved $dst to ${dst}.backup"
+    fi
+
+    if [[ "$skip" == "true" ]]; then
+      success "Skipped $src"
+    fi
+  fi
+
+  if [[ "$skip" != "true" ]]; then
+    ln -s "$1" "$2"
+    success "Linked $1 to $2"
+  fi
+}
+
+install_dotfiles() {
+  subheader "Symlinks"
+  progress "Installing dotfiles symlinks"
+
+  # Create dots command symlink
+  if [ ! -L "$DOTFILES_ROOT/bin/dots" ]; then
+    ln -sf "$DOTFILES_ROOT/core/dots" "$DOTFILES_ROOT/bin/dots"
+    success "Created dots command symlink"
+  fi
+
+  # Source the symlink library for proper precedence handling
+  source "$DOTFILES_ROOT/core/lib/symlink.sh"
+  
+  # Load LOCAL_DOTS from dotfiles.conf if it exists
+  local local_dir=""
+  if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+    # Source only variable assignments, not commands
+    eval "$(grep '^LOCAL_DOTS=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
+    # Expand the path to handle tilde and variables
+    if [[ -n "$LOCAL_DOTS" ]]; then
+      local_dir=$(expand_path "$LOCAL_DOTS")
+    fi
+  fi
+  
+  # Use the proper two-phase symlink creation with precedence
+  # This will handle both public and local symlinks correctly
+  create_all_symlinks_with_precedence "$DOTFILES_ROOT" "$local_dir" "false" "false"
+}
+
+setup_dotlocal_symlink() {
+  # Check if dotfiles.conf exists and has LOCAL_DOTS set
+  if [ -f "$DOTFILES_ROOT/dotfiles.conf" ]; then
+    # Source the config file to get LOCAL_DOTS
+    source "$DOTFILES_ROOT/dotfiles.conf"
+    
+    if [ -n "$LOCAL_DOTS" ]; then
+      # Expand tilde in LOCAL_DOTS path
+      LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
+      # The symlink is always named .local (convention), target comes from config
+      LOCAL_SYMLINK_PATH="$DOTFILES_ROOT/.local"
+      
+      # Check if the local dots directory exists
+      if [ -d "$LOCAL_DOTS_EXPANDED" ]; then
+        # Create symlink if it doesn't exist
+        if [ ! -e "$LOCAL_SYMLINK_PATH" ]; then
+          ln -sfn "$LOCAL_DOTS_EXPANDED" "$LOCAL_SYMLINK_PATH"
+          success "Created local symlink: $LOCAL_SYMLINK_PATH → $LOCAL_DOTS"
+        elif [ -L "$LOCAL_SYMLINK_PATH" ]; then
+          # Update existing symlink if it points to wrong location
+          current_target=$(readlink "$LOCAL_SYMLINK_PATH")
+          if [ "$current_target" != "$LOCAL_DOTS_EXPANDED" ]; then
+            ln -sfn "$LOCAL_DOTS_EXPANDED" "$LOCAL_SYMLINK_PATH"
+            success "Updated local symlink: $LOCAL_SYMLINK_PATH → $LOCAL_DOTS"
+          else
+            success "Local symlink already configured correctly"
+          fi
+        else
+          warning "$LOCAL_SYMLINK_PATH exists but is not a symlink"
+        fi
+      else
+        warning "LOCAL_DOTS is set to '$LOCAL_DOTS' but directory does not exist"
+        info "Create it with: mkdir -p $LOCAL_DOTS"
+      fi
+    fi
+  fi
+}
+
+install_homebrew() {
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    info "Checking Homebrew..."
+    
+    if ! command -v brew >/dev/null 2>&1; then
+      info "Installing Homebrew..."
+      
+      # Run the Homebrew installer
+      if "$DOTFILES_ROOT/homebrew/install.sh" 2>&1; then
+        # Setup Homebrew environment for the rest of this script
+        if [ -x /opt/homebrew/bin/brew ]; then
+          eval "$(/opt/homebrew/bin/brew shellenv)"
+        elif [ -x /usr/local/bin/brew ]; then
+          eval "$(/usr/local/bin/brew shellenv)"
+        fi
+        success "Homebrew installed"
+      else
+        error "Failed to install Homebrew"
+        return 1
+      fi
+    else
+      success "Homebrew already installed"
+    fi
+  fi
+}
+
+# Main bootstrap sequence
+main() {
+  # Essential setup
+  setup_gitconfig
+  setup_dotlocal_symlink  # MUST happen before install_dotfiles to ensure .local exists
+  install_dotfiles
+  install_homebrew
+
+  # Run installers if requested
+  if [[ "$run_install" == "true" ]]; then
+    subheader "Running Installers"
+    progress "Installing topic configurations"
+    
+    # Setup Homebrew environment first if on macOS
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      if [ -x /opt/homebrew/bin/brew ]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+      elif [ -x /usr/local/bin/brew ]; then
+        eval "$(/usr/local/bin/brew shellenv)"
+      fi
+    fi
+    
+    # Run the install command
+    if "$CORE_DIR/commands/install"; then
+      success "Installers completed"
+    else
+      error "Error running installers"
+      exit 1
+    fi
+  fi
+
+  blank
+  summary "Bootstrap" 1 0 0
+  blank
+  subheader "Next Steps"
+  list_item "Run 'dots install' to install all topic configurations"
+  list_item "Reload your shell or run 'source ~/.zshrc'"
+}
+
+# Run main function
+main

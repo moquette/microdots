@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+#
+# dots - Dotfiles management system
+# Simple wrapper that routes to subcommands
+#
+
+set -e
+
+# Get the dotfiles root directory
+DOTFILES_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+COMMANDS_DIR="$DOTFILES_ROOT/core/commands"
+CORE_DIR="$DOTFILES_ROOT/core"
+
+# Source UI functions
+source "$CORE_DIR/lib/common.sh"
+
+# Get the command
+COMMAND="$1"
+shift 2>/dev/null || true
+
+# Function to show help
+show_help() {
+  cat <<EOF
+dots - dotfiles management system
+
+Usage: dots <command> [options]
+
+Commands:
+  bootstrap    Initial system setup (gitconfig, symlinks, homebrew)
+  install      Install all topics and their configurations
+  relink       Recreate all symlinks with local precedence
+  status       Show dotfiles configuration and status
+  maintenance  Perform maintenance tasks (update, clean, health checks)
+  help         Show this help message
+
+Examples:
+  dots bootstrap           # First-time setup
+  dots bootstrap --install # Bootstrap + install in one step
+  dots install             # Install all topic configurations
+  dots relink              # Refresh symlinks (local overrides public)
+  dots status              # Show current configuration
+  dots maintenance         # Run maintenance tasks
+  dots maintenance --quick # Quick maintenance (skip brew updates)
+
+Topics:
+  Topics are automatically discovered and installed from the dotfiles root.
+  Each topic directory can contain its own install.sh script.
+
+For more information, see: https://github.com/moquette/dotfiles
+EOF
+}
+
+# Route to appropriate command
+case "$COMMAND" in
+  bootstrap)
+    if [ -f "$COMMANDS_DIR/bootstrap" ]; then
+      exec "$COMMANDS_DIR/bootstrap" "$@"
+    else
+      error "Bootstrap command not found"
+      exit 1
+    fi
+    ;;
+    
+  install)
+    if [ -f "$COMMANDS_DIR/install" ]; then
+      exec "$COMMANDS_DIR/install" "$@"
+    else
+      error "Install command not found"
+      exit 1
+    fi
+    ;;
+    
+  relink)
+    if [ -f "$COMMANDS_DIR/relink" ]; then
+      exec "$COMMANDS_DIR/relink" "$@"
+    else
+      error "Relink command not found"
+      exit 1
+    fi
+    ;;
+    
+  status)
+    if [ -f "$COMMANDS_DIR/status" ]; then
+      exec "$COMMANDS_DIR/status" "$@"
+    else
+      error "Status command not found"
+      exit 1
+    fi
+    ;;
+    
+  maintenance)
+    if [ -f "$COMMANDS_DIR/maintenance" ]; then
+      exec "$COMMANDS_DIR/maintenance" "$@"
+    else
+      error "Maintenance command not found"
+      exit 1
+    fi
+    ;;
+    
+  help|"")
+    show_help
+    exit 0
+    ;;
+    
+  *)
+    error "Unknown command: $COMMAND"
+    info "Run 'dots help' for usage"
+    exit 1
+    ;;
+esac

@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+#
+# dots install - Install all topic configurations
+# This discovers and runs all topic install.sh scripts
+#
+
+set -e
+
+# Get the dotfiles root directory
+DOTFILES_ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
+CORE_DIR="$DOTFILES_ROOT/core"
+
+# Source common functions
+source "$CORE_DIR/lib/common.sh"
+
+header "📦 Dotfiles Installation"
+
+# Setup Homebrew environment if on macOS
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  if test -f "/opt/homebrew/bin/brew"; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif test -f "/usr/local/bin/brew"; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
+  
+  # Check if brew is available and Brewfile exists
+  if command -v brew >/dev/null 2>&1 && [ -f "$DOTFILES_ROOT/homebrew/Brewfile" ]; then
+    subheader "Homebrew Setup"
+    progress "Running Homebrew bundle"
+    if brew bundle --file="$DOTFILES_ROOT/homebrew/Brewfile"; then
+      success "Homebrew packages installed"
+    else
+      warning "Some Homebrew packages failed to install"
+    fi
+    blank
+  fi
+fi
+
+# Track topics
+installed_topics=0
+failed_topics=0
+
+# Discover and run all topic installers
+for topic_dir in "$DOTFILES_ROOT"/*/; do
+  topic=$(basename "$topic_dir")
+  
+  # Skip special directories
+  [ "$topic" = "core" ] && continue
+  [ "$topic" = "bin" ] && continue
+  [ "$topic" = ".local" ] && continue
+  [ ! -d "$topic_dir" ] && continue
+  
+  # Check if topic has an install.sh
+  if [ -f "$topic_dir/install.sh" ]; then
+    separator
+    info "Installing $topic..."
+    separator
+    
+    # Run the installer
+    if (cd "$topic_dir" && bash ./install.sh); then
+      success "$topic installed successfully"
+      installed_topics=$((installed_topics + 1))
+    else
+      error "Failed to install $topic"
+      failed_topics=$((failed_topics + 1))
+    fi
+    blank
+  fi
+done
+
+# Load LOCAL_DOTS from dotfiles.conf if it exists
+LOCAL_DOTS=""
+if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+    # Source only variable assignments, not commands
+    eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
+fi
+
+# Process local topic installers if local directory exists
+if [[ -n "$LOCAL_DOTS" ]]; then
+  # Expand tilde in LOCAL_DOTS path
+  LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
+  if [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
+    info "Processing local topic installers..."
+    blank
+    
+    for topic_dir in "$LOCAL_DOTS_EXPANDED"/*/; do
+    [ ! -d "$topic_dir" ] && continue
+    topic=$(basename "$topic_dir")
+    
+    # Check if topic has an install.sh
+    if [ -f "$topic_dir/install.sh" ]; then
+      separator
+      info "Installing local/$topic..."
+      separator
+      
+      # Run the installer
+      if (cd "$topic_dir" && bash ./install.sh); then
+        success "local/$topic installed successfully"
+        installed_topics=$((installed_topics + 1))
+      else
+        error "Failed to install local/$topic"
+        failed_topics=$((failed_topics + 1))
+      fi
+      blank
+    fi
+  done
+  fi
+fi
+
+# Summary
+blank
+separator
+blank
+subheader "Installation Summary"
+info "Topics installed: $installed_topics"
+if [ $failed_topics -gt 0 ]; then
+  error "Topics failed: $failed_topics"
+  blank
+  error "Some installations failed. Please check the errors above."
+  exit 1
+else
+  blank
+  success "All dotfiles installed successfully!"
+fi
