@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "📦 Dotfiles (Public)",
+			"path": "."
+		},
+		{
+			"name": "🔒 Dotlocal (Private)",
+			"path": "/Volumes/Blackbox/Dotfiles/Dotlocal"
+		}
+	],
+	"settings": {}
+}
