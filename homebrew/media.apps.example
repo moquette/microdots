@@ -1,0 +1,47 @@
+# Media & Creative Apps - Example Brewfile
+# Copy to ~/.dotlocal/homebrew/media.apps and customize
+#
+# This file can contain ANY Homebrew items (formulae, casks, taps, mas apps)
+# Use: dots install --apps
+
+# Media Players
+cask 'vlc'                      # Media player
+cask 'iina'                     # Modern media player for macOS
+cask 'spotify'                  # Music streaming
+cask 'plex'                     # Media server client
+
+# Image & Photo
+cask 'imageoptim'               # Image optimization
+cask 'photomator'               # Photo editing
+cask 'pixelmator-pro'           # Image editing
+cask 'affinity-photo'           # Professional photo editing
+cask 'affinity-designer'        # Vector graphics
+
+# Video & Streaming
+cask 'obs'                      # Broadcasting software
+cask 'handbrake'                # Video transcoder
+cask 'davinci-resolve'          # Video editing
+cask 'final-cut-pro'            # Professional video editing
+cask 'screenflow'               # Screen recording
+
+# Audio
+cask 'audacity'                 # Audio editor
+cask 'logic-pro'                # Music production
+cask 'reaper'                   # Digital audio workstation
+cask 'spotify'                  # Music streaming
+
+# Creative Tools
+cask 'blender'                  # 3D creation suite
+cask 'inkscape'                 # Vector graphics editor
+cask 'krita'                    # Digital painting
+
+# Utilities
+cask 'downie'                   # Video downloader
+cask 'permute'                  # Media converter
+cask 'adapter'                  # Video converter
+
+# Command-line media tools
+brew 'ffmpeg'                   # Media conversion
+brew 'youtube-dl'               # Video downloader
+brew 'imagemagick'              # Image manipulation
+brew 'exiftool'                 # Read/write metadata

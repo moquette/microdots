@@ -76,18 +76,33 @@ You can organize your packages however you like:
 ~/.dotlocal/homebrew/
 ├── Brewfile          # Core tools
 ├── Brewfile.dev     # Development tools
-├── Brewfile.apps    # GUI applications
 └── install.sh       # Custom installation logic
 ```
 
-To use multiple Brewfiles:
-```bash
-brew bundle --file=~/.dotlocal/homebrew/Brewfile.dev
-brew bundle --file=~/.dotlocal/homebrew/Brewfile.apps
+### Apps Organization (*.apps files)
+```
+~/.dotlocal/homebrew/
+├── Brewfile              # Core CLI tools
+├── productivity.apps     # Productivity applications
+├── development.apps      # Development tools & IDEs
+├── media.apps           # Media & creative apps
+└── work.apps            # Work-specific tools
 ```
 
-## Example Packages
+Files with `.apps` extension can contain ANY Homebrew items (formulae, casks, taps, mas apps) and are specifically handled by the `--apps` flag:
 
+```bash
+# Install only from *.apps files
+dots install --apps
+
+# Or manually with brew bundle
+brew bundle --file=~/.dotlocal/homebrew/productivity.apps
+brew bundle --file=~/.dotlocal/homebrew/development.apps
+```
+
+## Example Files
+
+### Brewfile.example
 The `Brewfile.example` includes categories for:
 - Core Unix tools (coreutils, findutils, etc.)
 - Modern CLI tools (ripgrep, fd, bat, fzf)
@@ -97,6 +112,18 @@ The `Brewfile.example` includes categories for:
 - Container tools (docker, kubectl, helm)
 - Database tools (postgresql, redis)
 - GUI applications (vscode, iterm2, docker desktop)
+
+### *.apps Examples
+Example `.apps` files are provided for different use cases:
+- `productivity.apps.example` - Productivity tools (Notion, Slack, Raycast, etc.)
+- `development.apps.example` - Development environments (VS Code, Docker, iTerm2, etc.)
+- `media.apps.example` - Media & creative apps (VLC, OBS, Figma, etc.)
+
+Copy and customize them:
+```bash
+cp ~/.dotfiles/homebrew/productivity.apps.example ~/.dotlocal/homebrew/productivity.apps
+# Edit to uncomment/add your desired packages
+```
 
 ## Why This Approach?
 

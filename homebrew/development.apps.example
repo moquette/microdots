@@ -1,0 +1,56 @@
+# Development Apps - Example Brewfile
+# Copy to ~/.dotlocal/homebrew/development.apps and customize
+#
+# This file can contain ANY Homebrew items (formulae, casks, taps, mas apps)
+# Use: dots install --apps
+
+# IDEs & Editors
+cask 'visual-studio-code'       # Code editor
+cask 'sublime-text'             # Text editor
+cask 'jetbrains-toolbox'        # JetBrains IDE manager
+cask 'cursor'                   # AI-powered code editor
+cask 'zed'                      # High-performance editor
+
+# Terminal & Shell
+cask 'iterm2'                   # Terminal emulator
+cask 'warp'                     # Modern terminal
+cask 'alacritty'                # GPU-accelerated terminal
+cask 'kitty'                    # Fast, feature-rich terminal
+
+# Development Tools
+cask 'docker'                   # Docker Desktop
+cask 'orbstack'                 # Fast, light Docker alternative
+cask 'postman'                  # API development
+cask 'insomnia'                 # REST/GraphQL client
+cask 'tableplus'                # Database management
+cask 'dbeaver-community'        # Universal database tool
+cask 'github'                   # GitHub Desktop
+cask 'tower'                    # Git client
+cask 'sourcetree'               # Git GUI
+
+# Design & Debugging
+cask 'figma'                    # Design tool
+cask 'sketch'                   # Design tool
+cask 'proxyman'                 # HTTP debugging proxy
+cask 'charles'                  # Web debugging proxy
+
+# Virtualization
+cask 'virtualbox'               # Virtualization
+cask 'vagrant'                  # Development environments
+cask 'multipass'                # Ubuntu VMs
+
+# Cloud Development
+cask 'aws-vault'                # AWS credential manager
+cask 'session-manager-plugin'   # AWS Session Manager
+
+# Command Line Tools (formulae mixed with casks)
+brew 'gh'                       # GitHub CLI
+brew 'glab'                     # GitLab CLI
+brew 'lazygit'                  # Terminal UI for git
+brew 'lazydocker'               # Terminal UI for docker
+brew 'k9s'                      # Kubernetes TUI
+
+# Language-specific tools
+brew 'nvm'                      # Node version manager
+brew 'pyenv'                    # Python version manager
+brew 'rbenv'                    # Ruby version manager

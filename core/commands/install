@@ -13,7 +13,24 @@ CORE_DIR="$DOTFILES_ROOT/core"
 # Source common functions
 source "$CORE_DIR/lib/common.sh"
 
-header "📦 Dotfiles Installation"
+# Parse command line flags
+apps_only=false
+while test $# -gt 0; do
+  case "$1" in
+    --apps)
+      apps_only=true
+      ;;
+    *)
+      ;;
+  esac
+  shift
+done
+
+if [[ "$apps_only" == "true" ]]; then
+  header "📦 Installing from *.apps Brewfiles"
+else
+  header "📦 Dotfiles Installation"
+fi
 
 # Setup Homebrew environment if on macOS
 if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -23,50 +40,56 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     eval "$(/usr/local/bin/brew shellenv)"
   fi
   
-  # Check if brew is available and Brewfile exists
-  if command -v brew >/dev/null 2>&1 && [ -f "$DOTFILES_ROOT/homebrew/Brewfile" ]; then
-    subheader "Homebrew Setup"
-    progress "Running Homebrew bundle"
-    if brew bundle --file="$DOTFILES_ROOT/homebrew/Brewfile"; then
-      success "Homebrew packages installed"
-    else
-      warning "Some Homebrew packages failed to install"
+  # Skip regular Brewfile processing if --apps flag is set
+  if [[ "$apps_only" != "true" ]]; then
+    # Check if brew is available and Brewfile exists
+    if command -v brew >/dev/null 2>&1 && [ -f "$DOTFILES_ROOT/homebrew/Brewfile" ]; then
+      subheader "Homebrew Setup"
+      progress "Running Homebrew bundle"
+      if brew bundle --file="$DOTFILES_ROOT/homebrew/Brewfile"; then
+        success "Homebrew packages installed"
+      else
+        warning "Some Homebrew packages failed to install"
+      fi
+      blank
     fi
-    blank
   fi
 fi
 
-# Track topics
+# Track topics/apps
 installed_topics=0
 failed_topics=0
 
-# Discover and run all topic installers
-for topic_dir in "$DOTFILES_ROOT"/*/; do
-  topic=$(basename "$topic_dir")
-  
-  # Skip special directories
-  [ "$topic" = "core" ] && continue
-  [ "$topic" = "bin" ] && continue
-  [ "$topic" = ".local" ] && continue
-  [ ! -d "$topic_dir" ] && continue
-  
-  # Check if topic has an install.sh
-  if [ -f "$topic_dir/install.sh" ]; then
-    separator
-    info "Installing $topic..."
-    separator
+# Skip topic installers if --apps flag is set
+if [[ "$apps_only" != "true" ]]; then
+  # Discover and run all topic installers
+  for topic_dir in "$DOTFILES_ROOT"/*/; do
+    topic=$(basename "$topic_dir")
     
-    # Run the installer
-    if (cd "$topic_dir" && bash ./install.sh); then
-      success "$topic installed successfully"
-      installed_topics=$((installed_topics + 1))
-    else
-      error "Failed to install $topic"
-      failed_topics=$((failed_topics + 1))
+    # Skip special directories
+    [ "$topic" = "core" ] && continue
+    [ "$topic" = "bin" ] && continue
+    [ "$topic" = ".local" ] && continue
+    [ ! -d "$topic_dir" ] && continue
+    
+    # Check if topic has an install.sh
+    if [ -f "$topic_dir/install.sh" ]; then
+      separator
+      info "Installing $topic..."
+      separator
+      
+      # Run the installer
+      if (cd "$topic_dir" && bash ./install.sh); then
+        success "$topic installed successfully"
+        installed_topics=$((installed_topics + 1))
+      else
+        error "Failed to install $topic"
+        failed_topics=$((failed_topics + 1))
+      fi
+      blank
     fi
-    blank
-  fi
-done
+  done
+fi
 
 # Load LOCAL_DOTS from dotfiles.conf if it exists
 LOCAL_DOTS=""
@@ -75,35 +98,73 @@ if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
 fi
 
-# Process local topic installers if local directory exists
+# Process local directory based on mode
 if [[ -n "$LOCAL_DOTS" ]]; then
   # Expand tilde in LOCAL_DOTS path
   LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
-  if [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
-    info "Processing local topic installers..."
-    blank
-    
-    for topic_dir in "$LOCAL_DOTS_EXPANDED"/*/; do
-    [ ! -d "$topic_dir" ] && continue
-    topic=$(basename "$topic_dir")
-    
-    # Check if topic has an install.sh
-    if [ -f "$topic_dir/install.sh" ]; then
-      separator
-      info "Installing local/$topic..."
-      separator
-      
-      # Run the installer
-      if (cd "$topic_dir" && bash ./install.sh); then
-        success "local/$topic installed successfully"
-        installed_topics=$((installed_topics + 1))
-      else
-        error "Failed to install local/$topic"
-        failed_topics=$((failed_topics + 1))
-      fi
+  
+  if [[ "$apps_only" == "true" ]]; then
+    # Process *.apps files when --apps flag is set
+    if [[ -d "$LOCAL_DOTS_EXPANDED/homebrew" ]]; then
+      info "Processing *.apps Brewfiles..."
       blank
+      
+      apps_found=false
+      # Process both *.apps pattern and Brewfile.apps
+      for apps_file in "$LOCAL_DOTS_EXPANDED/homebrew"/*.apps "$LOCAL_DOTS_EXPANDED/homebrew"/Brewfile.apps; do
+        if [ -f "$apps_file" ]; then
+          apps_found=true
+          apps_name=$(basename "$apps_file")
+          separator
+          info "Installing from $apps_name..."
+          separator
+          
+          if brew bundle --file="$apps_file"; then
+            success "$apps_name installed successfully"
+            installed_topics=$((installed_topics + 1))
+          else
+            error "Failed to install from $apps_name"
+            failed_topics=$((failed_topics + 1))
+          fi
+          blank
+        fi
+      done
+      
+      if [[ "$apps_found" == "false" ]]; then
+        warning "No *.apps or Brewfile.apps files found in $LOCAL_DOTS_EXPANDED/homebrew/"
+        info "Create files with .apps extension (e.g., productivity.apps, development.apps) or Brewfile.apps"
+      fi
+    else
+      warning "No homebrew directory found in $LOCAL_DOTS_EXPANDED"
     fi
-  done
+  else
+    # Regular installation mode - process topic installers
+    if [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
+      info "Processing local topic installers..."
+      blank
+      
+      for topic_dir in "$LOCAL_DOTS_EXPANDED"/*/; do
+        [ ! -d "$topic_dir" ] && continue
+        topic=$(basename "$topic_dir")
+        
+        # Check if topic has an install.sh
+        if [ -f "$topic_dir/install.sh" ]; then
+          separator
+          info "Installing local/$topic..."
+          separator
+          
+          # Run the installer
+          if (cd "$topic_dir" && bash ./install.sh); then
+            success "local/$topic installed successfully"
+            installed_topics=$((installed_topics + 1))
+          else
+            error "Failed to install local/$topic"
+            failed_topics=$((failed_topics + 1))
+          fi
+          blank
+        fi
+      done
+    fi
   fi
 fi
 
@@ -111,14 +172,28 @@ fi
 blank
 separator
 blank
-subheader "Installation Summary"
-info "Topics installed: $installed_topics"
-if [ $failed_topics -gt 0 ]; then
-  error "Topics failed: $failed_topics"
-  blank
-  error "Some installations failed. Please check the errors above."
-  exit 1
+if [[ "$apps_only" == "true" ]]; then
+  subheader "Apps Installation Summary"
+  info "App bundles installed: $installed_topics"
+  if [ $failed_topics -gt 0 ]; then
+    error "App bundles failed: $failed_topics"
+    blank
+    error "Some app installations failed. Please check the errors above."
+    exit 1
+  else
+    blank
+    success "All apps installed successfully!"
+  fi
 else
-  blank
-  success "All dotfiles installed successfully!"
+  subheader "Installation Summary"
+  info "Topics installed: $installed_topics"
+  if [ $failed_topics -gt 0 ]; then
+    error "Topics failed: $failed_topics"
+    blank
+    error "Some installations failed. Please check the errors above."
+    exit 1
+  else
+    blank
+    success "All dotfiles installed successfully!"
+  fi
 fi

@@ -1,0 +1,42 @@
+# Productivity Apps - Example Brewfile
+# Copy to ~/.dotlocal/homebrew/productivity.apps and customize
+#
+# This file can contain ANY Homebrew items (formulae, casks, taps, mas apps)
+# Use: dots install --apps
+
+# Productivity Applications
+cask 'notion'                    # Note-taking and knowledge management
+cask 'obsidian'                  # Knowledge base with markdown
+cask 'raycast'                   # Productivity launcher (Alfred alternative)
+cask 'rectangle'                 # Window management
+cask 'meetingbar'               # Shows meetings in menu bar
+cask 'clockify'                 # Time tracking
+cask 'todoist'                  # Task management
+
+# Communication
+cask 'slack'                    # Team communication
+cask 'discord'                  # Community communication
+cask 'zoom'                     # Video conferencing
+cask 'microsoft-teams'          # Microsoft Teams
+
+# Cloud Storage & Sync
+cask 'dropbox'                  # Cloud storage
+cask 'google-drive'             # Google Drive
+cask 'syncthing'                # Decentralized file sync
+
+# Utilities
+cask 'alfred'                   # Productivity launcher
+cask 'bartender'                # Menu bar organization
+cask 'cleanmymac'               # System maintenance
+cask 'the-unarchiver'           # Archive extraction
+
+# Focus & Concentration
+cask 'freedom'                  # Website/app blocker
+cask 'be-focused'               # Pomodoro timer
+cask 'noisli'                   # Background noise
+
+# Mac App Store apps (requires 'mas' formula)
+# brew 'mas'                     # Mac App Store CLI
+# mas 'Things', id: 904280696    # Task management
+# mas 'Fantastical', id: 975937182  # Calendar
+# mas 'Bear', id: 1091189122     # Writing app

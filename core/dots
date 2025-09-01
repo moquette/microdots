@@ -37,6 +37,7 @@ Examples:
   dots bootstrap           # First-time setup
   dots bootstrap --install # Bootstrap + install in one step
   dots install             # Install all topic configurations
+  dots install --apps      # Install only from *.apps Brewfiles
   dots relink              # Refresh symlinks (local overrides public)
   dots status              # Show current configuration
   dots maintenance         # Run maintenance tasks
