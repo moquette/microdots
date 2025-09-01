@@ -1,11 +1,11 @@
 {
 	"folders": [
 		{
-			"name": "📦 Dotfiles (Public)",
+			"name": "📦 Dotfiles",
 			"path": "."
 		},
 		{
-			"name": "🔒 Dotlocal (Private)",
+			"name": "🔒 Dotlocal",
 			"path": "/Volumes/Blackbox/Dotfiles/Dotlocal"
 		}
 	],
