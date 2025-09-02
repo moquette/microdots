@@ -104,6 +104,18 @@ if [[ -n "$LOCAL_DOTS" ]]; then
             [[ -d "$LOCAL_DOTS_EXPANDED/shell" ]] && list_item "shell/"
             [[ -d "$LOCAL_DOTS_EXPANDED/bin" ]] && list_item "bin/"
             [[ -d "$LOCAL_DOTS_EXPANDED/ssh.symlink" ]] && list_item "ssh.symlink/"
+            
+            # Check core symlink
+            if [[ -L "$LOCAL_DOTS_EXPANDED/core" ]]; then
+                core_target=$(readlink "$LOCAL_DOTS_EXPANDED/core")
+                if [[ "$core_target" == "$DOTFILES_ROOT/core" ]]; then
+                    list_item "core → $DOTFILES_ROOT/core ✓"
+                else
+                    list_item "core → $core_target (incorrect)"
+                fi
+            elif [[ -e "$LOCAL_DOTS_EXPANDED/core" ]]; then
+                list_item "core (not a symlink!)"
+            fi
         fi
     else
         key_value "Status" "Directory not found"

@@ -190,6 +190,24 @@ setup_dotlocal_symlink() {
         else
           warning "$LOCAL_SYMLINK_PATH exists but is not a symlink"
         fi
+        
+        # Create core symlink in LOCAL_DOTS pointing back to dotfiles/core
+        CORE_SYMLINK_PATH="$LOCAL_DOTS_EXPANDED/core"
+        if [ ! -e "$CORE_SYMLINK_PATH" ]; then
+          ln -sfn "$DOTFILES_ROOT/core" "$CORE_SYMLINK_PATH"
+          success "Created core symlink in local: $CORE_SYMLINK_PATH → $DOTFILES_ROOT/core"
+        elif [ -L "$CORE_SYMLINK_PATH" ]; then
+          # Update existing symlink if it points to wrong location
+          current_core_target=$(readlink "$CORE_SYMLINK_PATH")
+          if [ "$current_core_target" != "$DOTFILES_ROOT/core" ]; then
+            ln -sfn "$DOTFILES_ROOT/core" "$CORE_SYMLINK_PATH"
+            success "Updated core symlink in local: $CORE_SYMLINK_PATH → $DOTFILES_ROOT/core"
+          else
+            success "Core symlink in local already configured correctly"
+          fi
+        else
+          warning "$CORE_SYMLINK_PATH exists but is not a symlink"
+        fi
       else
         warning "LOCAL_DOTS is set to '$LOCAL_DOTS' but directory does not exist"
         info "Create it with: mkdir -p $LOCAL_DOTS"
