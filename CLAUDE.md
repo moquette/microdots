@@ -8,7 +8,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Your configuration from @~/.claude/README.md
 - Your protocol @~/.claude/PROTOCOL.md
-
 - Strictly adhere to all documentation rules
 
 ## Project Overview
