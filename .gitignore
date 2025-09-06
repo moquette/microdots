@@ -27,6 +27,9 @@ docs/archives/
 # Test archives (old/broken tests)
 tests/archived/
 
+# VSCode settings (user-specific permissions)
+*.code-workspace
+
 
 # System files
 .DS_Store
@@ -51,6 +54,7 @@ system/localrc.symlink
 
 # Homebrew
 Brewfile.lock.json
+
 # Test artifacts (keep tests, exclude output)
 tests/*_REPORT.md
 tests/tmp/
