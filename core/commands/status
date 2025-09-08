@@ -12,6 +12,7 @@ CORE_DIR="$DOTFILES_ROOT/core"
 # Source libraries
 source "$CORE_DIR/lib/common.sh"
 source "$CORE_DIR/lib/validate-config.sh"
+source "$CORE_DIR/lib/ui.sh"
 
 # Load LOCAL_DOTS from dotfiles.conf if it exists
 LOCAL_DOTS=""
@@ -155,7 +156,155 @@ fi
 if [[ "$show_symlinks" == "true" ]]; then
     blank
     source "$CORE_DIR/lib/symlink.sh"
-    list_managed_symlinks "$DOTFILES_ROOT" "$LOCAL_DOTS"
+    
+    # Show standard dotfile symlinks
+    subheader "Standard Dotfile Symlinks"
+    
+    # Count symlinks first
+    public_symlink_count=0
+    local_symlink_count=0
+    broken_symlink_count=0
+    
+    # First pass to count
+    while IFS= read -r symlink; do
+        if [[ -L "$symlink" ]]; then
+            target=$(readlink "$symlink")
+            if [[ ! -e "$symlink" ]]; then
+                broken_symlink_count=$((broken_symlink_count + 1))
+            elif [[ "$target" == *"$DOTFILES_ROOT"* ]]; then
+                public_symlink_count=$((public_symlink_count + 1))
+            elif [[ -n "$LOCAL_DOTS_EXPANDED" && "$target" == *"$LOCAL_DOTS_EXPANDED"* ]]; then
+                local_symlink_count=$((local_symlink_count + 1))
+            fi
+        fi
+    done < <(find "$HOME" -maxdepth 1 -name ".*" 2>/dev/null)
+    
+    total_standard=$((public_symlink_count + local_symlink_count + broken_symlink_count))
+    echo "${BOLD}Home directory: $total_standard symlinks (Public: $public_symlink_count, Local: $local_symlink_count)${RESET}"
+    
+    # Second pass to display
+    while IFS= read -r symlink; do
+        if [[ -L "$symlink" ]]; then
+            target=$(readlink "$symlink")
+            status=""
+            
+            # Check if symlink is broken
+            if [[ ! -e "$symlink" ]]; then
+                status=" ✗ BROKEN"
+            fi
+            
+            # Always show all symlinks when --symlinks is used
+            indent "$(basename "$symlink") → $target$status"
+        fi
+    done < <(find "$HOME" -maxdepth 1 -name ".*" 2>/dev/null | sort)
+    
+    # Claude-specific symlinks
+    blank
+    subheader "Claude Configuration Symlinks"
+    
+    claude_symlink_count=0
+    claude_broken_count=0
+    
+    # Check Claude commands
+    if [[ -d "$HOME/.claude/commands" ]]; then
+        command_count=$(find "$HOME/.claude/commands" -type l 2>/dev/null | wc -l | tr -d ' ')
+        echo "${BOLD}Commands: $command_count symlinks${RESET}"
+        while IFS= read -r symlink; do
+            if [[ -L "$symlink" ]]; then
+                target=$(readlink "$symlink")
+                status=""
+                if [[ ! -e "$symlink" ]]; then
+                    status=" ✗ BROKEN"
+                    claude_broken_count=$((claude_broken_count + 1))
+                else
+                    claude_symlink_count=$((claude_symlink_count + 1))
+                fi
+                
+                # Always show in the clean format
+                indent "$(basename "$symlink") → $target$status"
+            fi
+        done < <(find "$HOME/.claude/commands" -type l 2>/dev/null | sort)
+    fi
+    
+    # Check Claude agents
+    if [[ -d "$HOME/.claude/agents" ]]; then
+        agent_count=$(find "$HOME/.claude/agents" -type l 2>/dev/null | wc -l | tr -d ' ')
+        echo "${BOLD}Agents: $agent_count symlinks${RESET}"
+        while IFS= read -r symlink; do
+            if [[ -L "$symlink" ]]; then
+                target=$(readlink "$symlink")
+                status=""
+                if [[ ! -e "$symlink" ]]; then
+                    status=" ✗ BROKEN"
+                    claude_broken_count=$((claude_broken_count + 1))
+                else
+                    claude_symlink_count=$((claude_symlink_count + 1))
+                fi
+                
+                # Always show all agent symlinks when --symlinks is used
+                indent "$(basename "$symlink") → $target$status"
+            fi
+        done < <(find "$HOME/.claude/agents" -type l 2>/dev/null | sort)
+    fi
+    
+    # Check Claude global files
+    echo "${BOLD}Global files: 2 symlinks${RESET}"
+    for file in PROTOCOL.md CLAUDE.md; do
+        if [[ -L "$HOME/.claude/$file" ]]; then
+            target=$(readlink "$HOME/.claude/$file")
+            status=""
+            if [[ ! -e "$HOME/.claude/$file" ]]; then
+                status=" ✗ BROKEN"
+                claude_broken_count=$((claude_broken_count + 1))
+            else
+                claude_symlink_count=$((claude_symlink_count + 1))
+            fi
+            
+            indent "$file → $target$status"
+        fi
+    done
+    
+    # Check Claude Desktop MCP config
+    CLAUDE_DESKTOP_CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+    if [[ -L "$CLAUDE_DESKTOP_CONFIG" ]]; then
+        echo "${BOLD}MCP Configuration: 1 symlink${RESET}"
+        target=$(readlink "$CLAUDE_DESKTOP_CONFIG")
+        status=""
+        if [[ ! -e "$CLAUDE_DESKTOP_CONFIG" ]]; then
+            status=" ✗ BROKEN"
+            claude_broken_count=$((claude_broken_count + 1))
+        else
+            claude_symlink_count=$((claude_symlink_count + 1))
+        fi
+        
+        indent "claude_desktop_config.json → $target$status"
+    fi
+    
+    # Summary
+    blank
+    subheader "Symlink Summary"
+    echo "${BOLD}Standard dotfiles → $((public_symlink_count + local_symlink_count)) total${RESET}"
+    indent "Public configs → $public_symlink_count"
+    indent "Local overrides → $local_symlink_count"
+    [[ $broken_symlink_count -gt 0 ]] && indent "Broken → $broken_symlink_count ✗"
+    
+    echo "${BOLD}Claude configuration → $claude_symlink_count total${RESET}"
+    indent "Commands → $(find "$HOME/.claude/commands" -type l 2>/dev/null | wc -l | tr -d ' ')"
+    indent "Agents → $(find "$HOME/.claude/agents" -type l 2>/dev/null | wc -l | tr -d ' ')"
+    indent "Global files → 2"
+    indent "MCP config → 1"
+    [[ $claude_broken_count -gt 0 ]] && indent "Broken → $claude_broken_count ✗"
+    
+    total_symlinks=$((public_symlink_count + local_symlink_count + claude_symlink_count))
+    total_broken=$((broken_symlink_count + claude_broken_count))
+    
+    blank
+    if [[ $total_broken -gt 0 ]]; then
+        error "› Total → $total_symlinks symlinks ($total_broken BROKEN)"
+        warning "Run 'dots relink --force' to fix broken symlinks"
+    else
+        success "› Total → $total_symlinks symlinks (all valid)"
+    fi
 fi
 
 # Summary
