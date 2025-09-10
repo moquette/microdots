@@ -77,6 +77,7 @@ run_clean() {
     local broken_link_count=0
     local temp_file_count=0
     local cache_cleaned=false
+    local zcompdump_refreshed=false
     
     # Clean .DS_Store files
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
@@ -114,14 +115,30 @@ run_clean() {
         fi
     fi
     
+    # Refresh zsh completion cache (weekly maintenance as recommended)
+    if [[ -f "$HOME/.zcompdump" ]]; then
+        local zcompdump_age=$(( ($(date +%s) - $(stat -f %m "$HOME/.zcompdump" 2>/dev/null || echo 0)) / 86400 ))
+        if [[ $zcompdump_age -gt 7 ]] || [[ "${FULL_MODE:-false}" == "true" ]]; then
+            if [[ "${DRY_RUN:-false}" == "true" ]]; then
+                info "[dry-run] Would refresh zsh completion cache (${zcompdump_age} days old)"
+            else
+                rm -f "$HOME/.zcompdump" "$HOME/.zcompdump.zwc"
+                zcompdump_refreshed=true
+            fi
+        fi
+    fi
+    
     # Report results
     local total=$((ds_store_count + broken_link_count + temp_file_count))
-    if [[ $total -eq 0 ]] && [[ "$cache_cleaned" == "false" ]]; then
+    if [[ $total -eq 0 ]] && [[ "$cache_cleaned" == "false" ]] && [[ "$zcompdump_refreshed" == "false" ]]; then
         info "No cleanup needed"
     else
         success "Cleaned: ${ds_store_count} .DS_Store, ${broken_link_count} broken symlinks, ${temp_file_count} temp files"
         if [[ "$cache_cleaned" == "true" ]]; then
             success "Cleared dotfiles cache"
+        fi
+        if [[ "$zcompdump_refreshed" == "true" ]]; then
+            success "Refreshed zsh completion cache (will rebuild on next shell start)"
         fi
     fi
 }
