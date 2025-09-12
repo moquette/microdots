@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    - @docs/IMPLEMENTATION.md - Technical implementation details
    - @docs/COMPLIANCE.md - System compliance assessment
    - @docs/LOCAL_OVERRIDES.md - Dotlocal system documentation
+   - @docs/MIGRATION_TO_DOTLOCAL.md - Migration from .local to .dotlocal
    - @docs/UI_STYLE_GUIDE.md - UI library and output standards
 
 3. **Confirmation Required:**
@@ -27,6 +28,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    - [x] docs/IMPLEMENTATION.md - Technical details reviewed
    - [x] docs/COMPLIANCE.md - Compliance standards acknowledged
    - [x] docs/LOCAL_OVERRIDES.md - Dotlocal system understood
+   - [x] docs/MIGRATION_TO_DOTLOCAL.md - Migration guide reviewed
    - [x] docs/UI_STYLE_GUIDE.md - UI standards loaded
    ```
    
@@ -99,6 +101,7 @@ The documentation is organized hierarchically for clarity:
 - **`docs/IMPLEMENTATION.md`** - Technical implementation details and internals
 - **`docs/COMPLIANCE.md`** - System compliance assessment and validation
 - **`docs/LOCAL_OVERRIDES.md`** - Comprehensive dotlocal system documentation with precedence rules
+- **`docs/MIGRATION_TO_DOTLOCAL.md`** - Migration guide from .local to .dotlocal naming
 - **`docs/UI_STYLE_GUIDE.md`** - UI library usage and output formatting standards
 
 **IMPORTANT:** All documents in the `docs/` folder are required reading as specified in the MANDATORY READING REQUIREMENTS section above.
@@ -170,8 +173,8 @@ The dotlocal system provides complete separation of public and private configura
 
 - **Four-level precedence** for finding local directory:
   1. `dotfiles.conf` configuration (highest priority)
-  2. `~/.dotfiles/local` symlink
-  3. `~/.dotfiles/local` directory
+  2. `~/.dotfiles/.dotlocal` symlink
+  3. `~/.dotfiles/.dotlocal` directory
   4. `~/.dotlocal` directory (default)
 - **Local always wins** - Private configs completely replace public ones
 - **Cloud sync compatible** - Can link to iCloud/Dropbox directories
@@ -183,7 +186,7 @@ See `docs/LOCAL_OVERRIDES.md` for complete dotlocal documentation including migr
 
 The MCP (Model Context Protocol) subsystem has two configuration paths:
 
-1. **servers.json** - Source of truth in `.local/claude/mcp/servers.json`
+1. **servers.json** - Source of truth in `.dotlocal/claude/mcp/servers.json`
 2. **~/.claude/.claude.json** - Claude Code's runtime configuration
 
 The `mcp-setup-global` script properly configures servers using:
@@ -198,7 +201,7 @@ Note: Command and arguments must be separated properly or servers will fail with
 
 `core/lib/validate-config.sh` implements safety checks preventing:
 
-- Multiple LOCAL_PATH definitions
+- Multiple DOTLOCAL definitions
 - Executable commands in config files
 - Invalid variable syntax
 - Circular symlinks
@@ -245,7 +248,7 @@ Key variables used throughout:
 
 - `$ZSH` - Points to `~/.dotfiles`
 - `$PROJECTS` - User's code directory (default: `~/Code`)
-- `$LOCAL_PATH` - Private config directory (configured in `dotfiles.conf`)
+- `$DOTLOCAL` - Private config directory (configured in `dotfiles.conf`)
 
 ### Security Considerations
 
@@ -261,6 +264,7 @@ Key variables used throughout:
 4. **Test portability** - Run tests before committing
 5. **Use UI library** - Source `core/lib/ui.sh` for consistent output
 6. **Preserve loading order** - path → config → compinit → completions
+7. **Use DOTLOCAL variable** - Not LOCAL_DOTS or LOCAL_PATH
 
 ## Known Issues and Workarounds
 
