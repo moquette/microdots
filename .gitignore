@@ -1,6 +1,7 @@
 # Local folders - never commit (common names)
 # IMPORTANT: These match both directories AND symlinks
 .local
+.dotlocal
 local
 private
 secrets
