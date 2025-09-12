@@ -55,7 +55,7 @@ dots relink                 # Rebuild symlinks
 dots maintenance            # Update packages and clean system
 
 # Testing
-tests/run_integration_tests.sh    # Run all 83 integration tests
+tests/run_integration_tests.sh    # Run all 85 integration tests
 tests/unit/test_portability.sh    # Check for hardcoded paths
 tests/run_all_tests.sh           # Complete test suite
 ```
@@ -165,7 +165,7 @@ topic/
 - Each subtopic is completely independent
 - Parent installer auto-discovers and runs subtopic installers
 
-See `docs/ARCHITECTURE.md` for complete topic structure documentation.
+See `MICRODOTS.md` for complete topic structure documentation.
 
 ### Private Layer System (Dotlocal)
 
@@ -215,7 +215,7 @@ The comprehensive test suite validates system integrity:
 **Test Categories:**
 
 - `tests/unit/` - Portability and hardcoded path detection
-- `tests/integration/` - 83 tests for topic independence and system behavior
+- `tests/integration/` - 85 tests for topic independence and system behavior
 - `tests/edge_cases/` - Security and edge case handling
 
 **Key Test Files:**
@@ -254,7 +254,7 @@ Key variables used throughout:
 
 - `compinit -u` flag used to suppress Homebrew directory warnings
 - Configuration files validated before sourcing
-- Sensitive data kept in `.local/` (not committed)
+- Sensitive data kept in `.dotlocal/` (not committed)
 
 ## Important Patterns to Maintain
 
