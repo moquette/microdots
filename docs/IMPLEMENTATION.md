@@ -1,8 +1,8 @@
-# Dotfiles Architecture
+# Microdots Technical Implementation
 
 ## Overview
 
-This dotfiles repository uses a **modular, topic-centric architecture** with dynamic discovery. Each aspect of system configuration is organized into self-contained topics that can be added, removed, or modified independently.
+This document provides technical implementation details for the Microdots system. For conceptual architecture and philosophy, see [MICRODOTS.md](../MICRODOTS.md). This guide focuses on the practical aspects of how the system operates internally.
 
 ## Core Infrastructure (`core/`)
 
@@ -27,41 +27,35 @@ core/
 - **`update`**: Updates dotfiles, packages, and configurations
 - **`common.sh`**: Shared utility functions used across all scripts
 
-## Topics
+## Implementation Mechanisms
 
-Topics are self-contained directories that configure specific aspects of the system:
+### Dynamic Discovery Implementation
 
-### Topic Structure
+The system uses filesystem conventions for automatic discovery:
 
+```bash
+# Installation discovery (from core/commands/install)
+find . -type f -name "install.sh" -not -path "./core/*"
+
+# Configuration discovery (from zsh/zshrc.symlink)
+for config ($ZSH/**/*.zsh); do
+  source $config
+done
+
+# Symlink discovery (from core/commands/relink)
+find . -name "*.symlink" -not -path "./core/*"
 ```
-topic-name/
-├── install.sh            # Optional: Installation script
-├── *.symlink            # Files to be symlinked to $HOME
-├── *.zsh                # Shell configuration files
-├── path.zsh             # PATH modifications (loaded first)
-├── completion.zsh       # Completions (loaded last)
-└── README.md            # Topic documentation
+
+### Path Resolution
+
+```bash
+# Homebrew path detection (handles Intel/Silicon)
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x /usr/local/bin/brew ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
 ```
-
-### Dynamic Discovery
-
-The system automatically discovers topics through:
-
-1. **Installation**: Any directory with an `install.sh` script
-2. **Symlinks**: Any `*.symlink` files are linked to `$HOME`
-3. **Shell Config**: Any `*.zsh` files are sourced by the shell
-
-### Current Topics
-
-- **`claude/`**: AI assistant configuration with modular subtopics
-- **`git/`**: Git configuration and aliases
-- **`homebrew/`**: Package management
-- **`macos/`**: macOS system preferences
-- **`node/`**: Node.js and npm configuration
-- **`ruby/`**: Ruby environment setup
-- **`system/`**: System utilities and aliases
-- **`vim/`**: Vim configuration
-- **`zsh/`**: Shell configuration
 
 ## Modular Subtopics
 
