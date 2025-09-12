@@ -133,9 +133,12 @@ topic-name/                    # Microdot root (the service boundary)
 ### Self-Containment Rules
 
 1. **Everything needed lives in the microdot directory**
-2. **No references to other microdots** (zero coupling)
+2. **No references to other microdots** (zero coupling)*
 3. **All dependencies are checked before use**
 4. **Graceful degradation when tools are missing**
+
+**Exception: Core Library Infrastructure**
+The `core/lib/` directory provides shared infrastructure (UI formatting, common utilities) that all microdots can use. This is the ONLY acceptable cross-microdot dependency as it provides infrastructure, not functionality. This intentional design ensures consistent behavior across the entire system.
 
 ---
 
@@ -436,6 +439,10 @@ fi
 local_git_helper() {
   # Implement needed functionality locally
 }
+
+# EXCEPTION: Core library is intentional shared infrastructure
+# This is the ONLY acceptable cross-microdot dependency:
+source "$DOTFILES_ROOT/core/lib/ui.sh"  # OK - shared infrastructure
 ```
 
 #### 3. Global Namespace Pollution

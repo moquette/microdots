@@ -229,8 +229,8 @@ test_loading_order_mechanism() {
         # Stage 2: Regular config files loading (lines 52-53) - looks for exclusion pattern
         local regular_loading_line=$(grep -n "\${config_files:#\*/path\.zsh}:#\*/completion\.zsh" "$zshrc" 2>/dev/null | head -1 | cut -d: -f1)
         
-        # Stage 3: compinit initialization (line 58)
-        local compinit_line=$(grep -n "^compinit " "$zshrc" 2>/dev/null | head -1 | cut -d: -f1)
+        # Stage 3: compinit initialization (around lines 63-66)
+        local compinit_line=$(grep -n "compinit -" "$zshrc" 2>/dev/null | head -1 | cut -d: -f1)
         
         # Stage 4: Completion files loading (lines 61-62) - looks for "(M)config_files:#*/completion.zsh"
         local completion_loading_line=$(grep -n "(M).*:#\*/completion\.zsh" "$zshrc" 2>/dev/null | head -1 | cut -d: -f1)

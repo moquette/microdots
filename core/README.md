@@ -21,11 +21,13 @@ The implementation of all `dots` subcommands:
 - `help` - Documentation
 
 ### Libraries (`lib/`)
-Shared functionality for the command system:
+**Intentional Shared Infrastructure** - These libraries provide consistent functionality across all microdots:
 - `ui.sh` - Consistent terminal output formatting
 - `common.sh` - Shared utilities and functions
 - `validate-config.sh` - Configuration validation
 - `symlink.sh` - Symlink management utilities
+
+**Note:** The coupling between core libraries (e.g., common.sh sourcing ui.sh) is intentional. This shared infrastructure ensures consistent behavior across the entire Microdots system while individual microdots remain functionally independent.
 
 ## Philosophy
 
