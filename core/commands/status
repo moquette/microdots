@@ -14,19 +14,11 @@ source "$CORE_DIR/lib/common.sh"
 source "$CORE_DIR/lib/validate-config.sh"
 source "$CORE_DIR/lib/ui.sh"
 
-# Load DOTLOCAL or LOCAL_DOTS from dotfiles.conf if it exists
-LOCAL_DOTS=""
+# Load DOTLOCAL from dotfiles.conf if it exists
 DOTLOCAL=""
 if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     # Source only variable assignments, not commands
     eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
-    
-    # Support both variable names (DOTLOCAL takes precedence)
-    if [[ -n "$DOTLOCAL" ]]; then
-        LOCAL_DOTS="$DOTLOCAL"  # Use new name internally
-    elif [[ -n "$LOCAL_DOTS" ]]; then
-        DOTLOCAL="$LOCAL_DOTS"  # Backward compatibility
-    fi
 fi
 
 # Parse options
@@ -152,18 +144,6 @@ else
     info "~/.dotfiles/.dotlocal: Not present"
 fi
 
-# Check .local (legacy/backward compatibility)
-if [[ -L "$DOTFILES_ROOT/.local" ]]; then
-    target=$(readlink "$DOTFILES_ROOT/.local")
-    info "~/.dotfiles/.local → $target (legacy)"
-    if [[ ! -d "$target" ]]; then
-        warning "  Symlink target does not exist!"
-    fi
-elif [[ -d "$DOTFILES_ROOT/.local" ]]; then
-    warning "~/.dotfiles/.local: Regular directory (not a symlink)"
-else
-    info "~/.dotfiles/.local: Not present"
-fi
 
 # Check ~/.dotlocal directory
 if [[ -d "$HOME/.dotlocal" ]]; then

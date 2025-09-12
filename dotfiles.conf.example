@@ -6,8 +6,8 @@
 #
 # ⚠️  CRITICAL VALIDATION RULES - READ BEFORE EDITING:
 #
-# 1. ONLY USE ONE LOCAL_DOTS DEFINITION
-#    Multiple LOCAL_DOTS definitions will cause a BLOCKING ERROR
+# 1. ONLY USE ONE DOTLOCAL DEFINITION
+#    Multiple DOTLOCAL definitions will cause a BLOCKING ERROR
 #    The system will refuse to run with multiple definitions
 #
 # 2. ONLY SET VARIABLES - NO COMMANDS
@@ -37,31 +37,31 @@
 # Option 1: Hidden directory in home (RECOMMENDED)
 # ------------------------------------------------------------------------------
 # Simple, portable, and works on all systems
-# LOCAL_DOTS="$HOME/.dotlocal"
+# DOTLOCAL="$HOME/.dotlocal"
 
 # ------------------------------------------------------------------------------
 # Option 2: Cloud storage - iCloud Drive
 # ------------------------------------------------------------------------------
 # Syncs across Mac devices automatically
-# LOCAL_DOTS="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Dotlocal"
+# DOTLOCAL="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Dotlocal"
 
 # ------------------------------------------------------------------------------
 # Option 3: Cloud storage - Dropbox
 # ------------------------------------------------------------------------------
 # Cross-platform cloud sync
-# LOCAL_DOTS="$HOME/Dropbox/Dotlocal"
+# DOTLOCAL="$HOME/Dropbox/Dotlocal"
 
 # ------------------------------------------------------------------------------
 # Option 4: External drive or network location
 # ------------------------------------------------------------------------------
 # For sensitive data that should stay off the main system
-# LOCAL_DOTS="/Volumes/SecureDrive/dotlocal"
-# LOCAL_DOTS="/Volumes/NAS/dotlocal"
+# DOTLOCAL="/Volumes/SecureDrive/dotlocal"
+# DOTLOCAL="/Volumes/NAS/dotlocal"
 
 # ------------------------------------------------------------------------------
 # Option 5: Symlink method (advanced)
 # ------------------------------------------------------------------------------
-# If you prefer to manage the symlink manually, don't set LOCAL_DOTS at all
+# If you prefer to manage the symlink manually, don't set DOTLOCAL at all
 # Instead, create the symlink yourself:
 # ln -s /your/custom/path ~/.dotfiles/.local
 #
@@ -103,9 +103,9 @@
 # VALIDATION EXAMPLES - WHAT NOT TO DO
 # ==============================================================================
 #
-# ❌ WRONG - Multiple LOCAL_DOTS definitions (causes BLOCKING ERROR):
-# LOCAL_DOTS="$HOME/.dotlocal"
-# LOCAL_DOTS="$HOME/Dropbox/dotlocal"    # ERROR: Duplicate definition!
+# ❌ WRONG - Multiple DOTLOCAL definitions (causes BLOCKING ERROR):
+# DOTLOCAL="$HOME/.dotlocal"
+# DOTLOCAL="$HOME/Dropbox/dotlocal"    # ERROR: Duplicate definition!
 #
 # ❌ WRONG - Shell commands (causes BLOCKING ERROR):
 # mkdir -p $HOME/.dotlocal                # ERROR: Command execution!
@@ -118,12 +118,12 @@
 # }
 #
 # ✅ CORRECT - Single variable definitions:
-# LOCAL_DOTS="$HOME/.dotlocal"
+# DOTLOCAL="$HOME/.dotlocal"
 # BACKUP_PATH="/Volumes/Backup"
 # MY_CUSTOM_VAR="value"
 #
 # ✅ CORRECT - Commented out options:
-# # LOCAL_DOTS="$HOME/.dotlocal"
+# # DOTLOCAL="$HOME/.dotlocal"
 # # This is a comment and won't be processed
 #
 # ==============================================================================

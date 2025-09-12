@@ -14,19 +14,11 @@ CORE_DIR="$DOTFILES_ROOT/core"
 source "$CORE_DIR/lib/ui.sh"
 source "$CORE_DIR/lib/validate-config.sh"
 
-# Load DOTLOCAL or LOCAL_DOTS from dotfiles.conf if it exists
-LOCAL_DOTS=""
+# Load DOTLOCAL from dotfiles.conf if it exists
 DOTLOCAL=""
 if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     # Source only variable assignments, not commands
     eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
-    
-    # Support both variable names (DOTLOCAL takes precedence)
-    if [[ -n "$DOTLOCAL" ]]; then
-        LOCAL_DOTS="$DOTLOCAL"  # Use new name internally
-    elif [[ -n "$LOCAL_DOTS" ]]; then
-        DOTLOCAL="$LOCAL_DOTS"  # Backward compatibility
-    fi
 fi
 
 # Parse options
@@ -122,11 +114,9 @@ if [[ -n "$DOTLOCAL" ]]; then
     # Expand tilde in DOTLOCAL path
     DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
     LOCAL_SYMLINK_PATH="$DOTFILES_ROOT/.dotlocal"
-    LEGACY_SYMLINK_PATH="$DOTFILES_ROOT/.local"
     
     if [[ "$dry_run" == "true" ]]; then
         info "[dry-run] Would create/update .dotlocal symlink → $DOTLOCAL"
-        info "[dry-run] Would create/update .local legacy symlink → $DOTLOCAL"
     else
         # Check if the local dots directory exists
         if [[ -d "$DOTLOCAL_EXPANDED" ]]; then
@@ -147,19 +137,6 @@ if [[ -n "$DOTLOCAL" ]]; then
                 warning "$LOCAL_SYMLINK_PATH exists but is not a symlink"
             fi
             
-            # Create legacy .local symlink for backward compatibility
-            if [ ! -e "$LEGACY_SYMLINK_PATH" ]; then
-                ln -sfn "$DOTLOCAL_EXPANDED" "$LEGACY_SYMLINK_PATH"
-                success "Created legacy .local symlink → $DOTLOCAL"
-            elif [ -L "$LEGACY_SYMLINK_PATH" ]; then
-                current_legacy_target=$(readlink "$LEGACY_SYMLINK_PATH")
-                if [ "$current_legacy_target" != "$DOTLOCAL_EXPANDED" ]; then
-                    ln -sfn "$DOTLOCAL_EXPANDED" "$LEGACY_SYMLINK_PATH"
-                    success "Updated legacy .local symlink → $DOTLOCAL"
-                else
-                    [[ "$verbose" == "true" ]] && info ".local legacy symlink already correct"
-                fi
-            fi
             
             # Create/update core symlink in DOTLOCAL pointing back to dotfiles/core
             CORE_SYMLINK_PATH="$DOTLOCAL_EXPANDED/core"
@@ -294,7 +271,7 @@ if [[ -d "$DOTFILES_ROOT" ]]; then
         if create_symlink_ui "$source" "$target" false; then
             public_count=$((public_count + 1))
         fi
-    done < <(find "$DOTFILES_ROOT" -name "*.symlink" -not -path "*/.local/*" -not -path "*/.dotlocal/*" 2>/dev/null)
+    done < <(find "$DOTFILES_ROOT" -name "*.symlink" -not -path "*/.dotlocal/*" 2>/dev/null)
 fi
 
 [[ "$dry_run" == "false" ]] && success "Public configurations linked: $public_count"
@@ -332,8 +309,8 @@ fi
 claude_count=0
 claude_global_count=0
 claude_agent_count=0
-if [[ -n "$LOCAL_DOTS" ]]; then
-    DOTLOCAL_EXPANDED=$(expand_path "$LOCAL_DOTS")
+if [[ -n "$DOTLOCAL" ]]; then
+    DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
     CLAUDE_COMMANDS_DIR="$DOTLOCAL_EXPANDED/claude/commands"
     CLAUDE_GLOBAL_DIR="$DOTLOCAL_EXPANDED/claude/global"
     CLAUDE_AGENTS_DIR="$DOTLOCAL_EXPANDED/claude/agents"

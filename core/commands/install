@@ -69,7 +69,7 @@ if [[ "$apps_only" != "true" ]]; then
     # Skip special directories
     [ "$topic" = "core" ] && continue
     [ "$topic" = "bin" ] && continue
-    [ "$topic" = ".local" ] && continue
+    [ "$topic" = ".dotlocal" ] && continue
     [ ! -d "$topic_dir" ] && continue
     
     # Check if topic has an install.sh
@@ -91,19 +91,11 @@ if [[ "$apps_only" != "true" ]]; then
   done
 fi
 
-# Load DOTLOCAL or LOCAL_DOTS from dotfiles.conf if it exists
-LOCAL_DOTS=""
+# Load DOTLOCAL from dotfiles.conf if it exists
 DOTLOCAL=""
 if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     # Source only variable assignments, not commands
     eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
-    
-    # Support both variable names (DOTLOCAL takes precedence)
-    if [[ -n "$DOTLOCAL" ]]; then
-        LOCAL_DOTS="$DOTLOCAL"  # Use new name internally
-    elif [[ -n "$LOCAL_DOTS" ]]; then
-        DOTLOCAL="$LOCAL_DOTS"  # Backward compatibility
-    fi
 fi
 
 # Process local directory based on mode

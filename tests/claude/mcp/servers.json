@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "public-filesystem": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/filesystem-mcp-server", "/tmp"],
+      "type": "stdio"
+    },
+    "public-memory": {
+      "command": "npx", 
+      "args": ["-y", "@anthropic/memory-mcp-server"],
+      "type": "stdio"
+    }
+  }
+}
