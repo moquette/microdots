@@ -185,9 +185,10 @@ setup_dotlocal_symlink() {
     if [ -n "$DOTLOCAL" ]; then
       # Expand tilde in DOTLOCAL path
       DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
-      # For now, keep symlink as .local for backward compatibility
-      # Will change to .dotlocal in phase 2
-      LOCAL_SYMLINK_PATH="$DOTFILES_ROOT/.local"
+      # Create .dotlocal as the primary symlink
+      LOCAL_SYMLINK_PATH="$DOTFILES_ROOT/.dotlocal"
+      # Also create .local for backward compatibility
+      LEGACY_SYMLINK_PATH="$DOTFILES_ROOT/.local"
       
       # Check if the local dots directory exists
       if [ -d "$DOTLOCAL_EXPANDED" ]; then
@@ -206,6 +207,18 @@ setup_dotlocal_symlink() {
           fi
         else
           warning "$LOCAL_SYMLINK_PATH exists but is not a symlink"
+        fi
+        
+        # Create legacy .local symlink for backward compatibility
+        if [ ! -e "$LEGACY_SYMLINK_PATH" ]; then
+          ln -sfn "$DOTLOCAL_EXPANDED" "$LEGACY_SYMLINK_PATH"
+          success "Created legacy symlink: $LEGACY_SYMLINK_PATH → $DOTLOCAL"
+        elif [ -L "$LEGACY_SYMLINK_PATH" ]; then
+          current_legacy_target=$(readlink "$LEGACY_SYMLINK_PATH")
+          if [ "$current_legacy_target" != "$DOTLOCAL_EXPANDED" ]; then
+            ln -sfn "$DOTLOCAL_EXPANDED" "$LEGACY_SYMLINK_PATH"
+            success "Updated legacy symlink: $LEGACY_SYMLINK_PATH → $DOTLOCAL"
+          fi
         fi
         
         # Create core symlink in DOTLOCAL pointing back to dotfiles/core

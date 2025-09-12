@@ -135,12 +135,27 @@ else
     key_value "Status" "Using public configs only"
 fi
 
-# Check for symlink at ~/.dotfiles/.local
+# Check for symlinks at ~/.dotfiles/.dotlocal and ~/.dotfiles/.local
 blank
 subheader "Symlink Status"
+
+# Check .dotlocal (primary)
+if [[ -L "$DOTFILES_ROOT/.dotlocal" ]]; then
+    target=$(readlink "$DOTFILES_ROOT/.dotlocal")
+    info "~/.dotfiles/.dotlocal → $target"
+    if [[ ! -d "$target" ]]; then
+        warning "  Symlink target does not exist!"
+    fi
+elif [[ -d "$DOTFILES_ROOT/.dotlocal" ]]; then
+    warning "~/.dotfiles/.dotlocal: Regular directory (not a symlink)"
+else
+    info "~/.dotfiles/.dotlocal: Not present"
+fi
+
+# Check .local (legacy/backward compatibility)
 if [[ -L "$DOTFILES_ROOT/.local" ]]; then
     target=$(readlink "$DOTFILES_ROOT/.local")
-    info "~/.dotfiles/.local → $target"
+    info "~/.dotfiles/.local → $target (legacy)"
     if [[ ! -d "$target" ]]; then
         warning "  Symlink target does not exist!"
     fi

@@ -117,32 +117,48 @@ else
     key_value "DOTLOCAL" "Not configured"
 fi
 
-# Create or update .local symlink if DOTLOCAL is set
+# Create or update .dotlocal symlink if DOTLOCAL is set
 if [[ -n "$DOTLOCAL" ]]; then
     # Expand tilde in DOTLOCAL path
     DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
-    LOCAL_SYMLINK_PATH="$DOTFILES_ROOT/.local"
+    LOCAL_SYMLINK_PATH="$DOTFILES_ROOT/.dotlocal"
+    LEGACY_SYMLINK_PATH="$DOTFILES_ROOT/.local"
     
     if [[ "$dry_run" == "true" ]]; then
-        info "[dry-run] Would create/update .local symlink → $DOTLOCAL"
+        info "[dry-run] Would create/update .dotlocal symlink → $DOTLOCAL"
+        info "[dry-run] Would create/update .local legacy symlink → $DOTLOCAL"
     else
         # Check if the local dots directory exists
         if [[ -d "$DOTLOCAL_EXPANDED" ]]; then
-            # Create symlink if it doesn't exist
+            # Create .dotlocal symlink if it doesn't exist
             if [ ! -e "$LOCAL_SYMLINK_PATH" ]; then
                 ln -sfn "$DOTLOCAL_EXPANDED" "$LOCAL_SYMLINK_PATH"
-                success "Created .local symlink → $DOTLOCAL"
+                success "Created .dotlocal symlink → $DOTLOCAL"
             elif [ -L "$LOCAL_SYMLINK_PATH" ]; then
                 # Update existing symlink if it points to wrong location
                 current_target=$(readlink "$LOCAL_SYMLINK_PATH")
                 if [ "$current_target" != "$DOTLOCAL_EXPANDED" ]; then
                     ln -sfn "$DOTLOCAL_EXPANDED" "$LOCAL_SYMLINK_PATH"
-                    success "Updated .local symlink → $DOTLOCAL"
+                    success "Updated .dotlocal symlink → $DOTLOCAL"
                 else
-                    [[ "$verbose" == "true" ]] && info ".local symlink already correct"
+                    [[ "$verbose" == "true" ]] && info ".dotlocal symlink already correct"
                 fi
             else
                 warning "$LOCAL_SYMLINK_PATH exists but is not a symlink"
+            fi
+            
+            # Create legacy .local symlink for backward compatibility
+            if [ ! -e "$LEGACY_SYMLINK_PATH" ]; then
+                ln -sfn "$DOTLOCAL_EXPANDED" "$LEGACY_SYMLINK_PATH"
+                success "Created legacy .local symlink → $DOTLOCAL"
+            elif [ -L "$LEGACY_SYMLINK_PATH" ]; then
+                current_legacy_target=$(readlink "$LEGACY_SYMLINK_PATH")
+                if [ "$current_legacy_target" != "$DOTLOCAL_EXPANDED" ]; then
+                    ln -sfn "$DOTLOCAL_EXPANDED" "$LEGACY_SYMLINK_PATH"
+                    success "Updated legacy .local symlink → $DOTLOCAL"
+                else
+                    [[ "$verbose" == "true" ]] && info ".local legacy symlink already correct"
+                fi
             fi
             
             # Create/update core symlink in DOTLOCAL pointing back to dotfiles/core
