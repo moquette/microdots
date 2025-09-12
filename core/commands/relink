@@ -14,11 +14,19 @@ CORE_DIR="$DOTFILES_ROOT/core"
 source "$CORE_DIR/lib/ui.sh"
 source "$CORE_DIR/lib/validate-config.sh"
 
-# Load LOCAL_DOTS from dotfiles.conf if it exists
+# Load DOTLOCAL or LOCAL_DOTS from dotfiles.conf if it exists
 LOCAL_DOTS=""
+DOTLOCAL=""
 if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     # Source only variable assignments, not commands
     eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
+    
+    # Support both variable names (DOTLOCAL takes precedence)
+    if [[ -n "$DOTLOCAL" ]]; then
+        LOCAL_DOTS="$DOTLOCAL"  # Use new name internally
+    elif [[ -n "$LOCAL_DOTS" ]]; then
+        DOTLOCAL="$LOCAL_DOTS"  # Backward compatibility
+    fi
 fi
 
 # Parse options
@@ -57,7 +65,7 @@ while test $# -gt 0; do
       list_item "--help       Show this help message"
       blank
       subheader "Precedence Order"
-      info "  1. Local configs (from \$LOCAL_DOTS if set)"
+      info "  1. Local configs (from \$DOTLOCAL if set)"
       info "  2. Public configs (from \$DOTFILES_ROOT)"
       blank
       exit 0
@@ -103,33 +111,33 @@ success "Configuration valid"
 # Show current configuration
 subheader "Environment"
 key_value "DOTFILES_ROOT" "$DOTFILES_ROOT"
-if [[ -n "$LOCAL_DOTS" ]]; then
-    key_value "LOCAL_DOTS" "$LOCAL_DOTS"
+if [[ -n "$DOTLOCAL" ]]; then
+    key_value "DOTLOCAL" "$DOTLOCAL"
 else
-    key_value "LOCAL_DOTS" "Not configured"
+    key_value "DOTLOCAL" "Not configured"
 fi
 
-# Create or update .local symlink if LOCAL_DOTS is set
-if [[ -n "$LOCAL_DOTS" ]]; then
-    # Expand tilde in LOCAL_DOTS path
-    LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
+# Create or update .local symlink if DOTLOCAL is set
+if [[ -n "$DOTLOCAL" ]]; then
+    # Expand tilde in DOTLOCAL path
+    DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
     LOCAL_SYMLINK_PATH="$DOTFILES_ROOT/.local"
     
     if [[ "$dry_run" == "true" ]]; then
-        info "[dry-run] Would create/update .local symlink → $LOCAL_DOTS"
+        info "[dry-run] Would create/update .local symlink → $DOTLOCAL"
     else
         # Check if the local dots directory exists
-        if [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
+        if [[ -d "$DOTLOCAL_EXPANDED" ]]; then
             # Create symlink if it doesn't exist
             if [ ! -e "$LOCAL_SYMLINK_PATH" ]; then
-                ln -sfn "$LOCAL_DOTS_EXPANDED" "$LOCAL_SYMLINK_PATH"
-                success "Created .local symlink → $LOCAL_DOTS"
+                ln -sfn "$DOTLOCAL_EXPANDED" "$LOCAL_SYMLINK_PATH"
+                success "Created .local symlink → $DOTLOCAL"
             elif [ -L "$LOCAL_SYMLINK_PATH" ]; then
                 # Update existing symlink if it points to wrong location
                 current_target=$(readlink "$LOCAL_SYMLINK_PATH")
-                if [ "$current_target" != "$LOCAL_DOTS_EXPANDED" ]; then
-                    ln -sfn "$LOCAL_DOTS_EXPANDED" "$LOCAL_SYMLINK_PATH"
-                    success "Updated .local symlink → $LOCAL_DOTS"
+                if [ "$current_target" != "$DOTLOCAL_EXPANDED" ]; then
+                    ln -sfn "$DOTLOCAL_EXPANDED" "$LOCAL_SYMLINK_PATH"
+                    success "Updated .local symlink → $DOTLOCAL"
                 else
                     [[ "$verbose" == "true" ]] && info ".local symlink already correct"
                 fi
@@ -137,8 +145,8 @@ if [[ -n "$LOCAL_DOTS" ]]; then
                 warning "$LOCAL_SYMLINK_PATH exists but is not a symlink"
             fi
             
-            # Create/update core symlink in LOCAL_DOTS pointing back to dotfiles/core
-            CORE_SYMLINK_PATH="$LOCAL_DOTS_EXPANDED/core"
+            # Create/update core symlink in DOTLOCAL pointing back to dotfiles/core
+            CORE_SYMLINK_PATH="$DOTLOCAL_EXPANDED/core"
             if [ ! -e "$CORE_SYMLINK_PATH" ]; then
                 ln -sfn "$DOTFILES_ROOT/core" "$CORE_SYMLINK_PATH"
                 success "Created core symlink in local: core → $DOTFILES_ROOT/core"
@@ -155,7 +163,7 @@ if [[ -n "$LOCAL_DOTS" ]]; then
                 warning "$CORE_SYMLINK_PATH exists but is not a symlink"
             fi
         else
-            warning "LOCAL_DOTS is set but directory does not exist: $LOCAL_DOTS"
+            warning "DOTLOCAL is set but directory does not exist: $DOTLOCAL"
         fi
     fi
 fi
@@ -253,12 +261,12 @@ if [[ -d "$DOTFILES_ROOT" ]]; then
         target=$(get_symlink_target "$source")
         
         # Skip if local version exists (will be handled in phase 2)
-        if [[ -n "$LOCAL_DOTS" ]]; then
-            # Expand tilde in LOCAL_DOTS path
-            LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
-            if [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
+        if [[ -n "$DOTLOCAL" ]]; then
+            # Expand tilde in DOTLOCAL path
+            DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
+            if [[ -d "$DOTLOCAL_EXPANDED" ]]; then
                 relative_path="${source#$DOTFILES_ROOT/}"
-                local_equivalent="$LOCAL_DOTS_EXPANDED/${relative_path}"
+                local_equivalent="$DOTLOCAL_EXPANDED/${relative_path}"
                 if [[ -f "$local_equivalent" ]]; then
                     skip_count=$((skip_count + 1))
                     [[ "$verbose" == "true" ]] && indent "Skipped $(basename "$target") (has local override)"
@@ -276,10 +284,10 @@ fi
 [[ "$dry_run" == "false" ]] && success "Public configurations linked: $public_count"
 
 # Process local configs second (they override)
-if [[ -n "$LOCAL_DOTS" ]]; then
-    # Expand tilde in LOCAL_DOTS path
-    LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
-    if [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
+if [[ -n "$DOTLOCAL" ]]; then
+    # Expand tilde in DOTLOCAL path
+    DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
+    if [[ -d "$DOTLOCAL_EXPANDED" ]]; then
     if [[ "$dry_run" == "true" ]]; then
         info "Processing local overrides (dry-run)"
     else
@@ -294,7 +302,7 @@ if [[ -n "$LOCAL_DOTS" ]]; then
         if create_symlink_ui "$source" "$target" true; then
             local_count=$((local_count + 1))
         fi
-    done < <(find "$LOCAL_DOTS_EXPANDED" -name "*.symlink" 2>/dev/null)
+    done < <(find "$DOTLOCAL_EXPANDED" -name "*.symlink" 2>/dev/null)
     
     [[ "$dry_run" == "false" ]] && success "Local overrides linked: $local_count"
     else
@@ -309,10 +317,10 @@ claude_count=0
 claude_global_count=0
 claude_agent_count=0
 if [[ -n "$LOCAL_DOTS" ]]; then
-    LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
-    CLAUDE_COMMANDS_DIR="$LOCAL_DOTS_EXPANDED/claude/commands"
-    CLAUDE_GLOBAL_DIR="$LOCAL_DOTS_EXPANDED/claude/global"
-    CLAUDE_AGENTS_DIR="$LOCAL_DOTS_EXPANDED/claude/agents"
+    DOTLOCAL_EXPANDED=$(expand_path "$LOCAL_DOTS")
+    CLAUDE_COMMANDS_DIR="$DOTLOCAL_EXPANDED/claude/commands"
+    CLAUDE_GLOBAL_DIR="$DOTLOCAL_EXPANDED/claude/global"
+    CLAUDE_AGENTS_DIR="$DOTLOCAL_EXPANDED/claude/agents"
     GLOBAL_CLAUDE_DIR="$HOME/.claude/commands"
     GLOBAL_CLAUDE_AGENTS="$HOME/.claude/agents"
     GLOBAL_CLAUDE_ROOT="$HOME/.claude"
@@ -543,7 +551,7 @@ if [[ -n "$LOCAL_DOTS" ]]; then
     # Handle Claude Desktop MCP configuration symlink
     CLAUDE_DESKTOP_DIR="$HOME/Library/Application Support/Claude"
     if [[ -d "$CLAUDE_DESKTOP_DIR" ]]; then
-        MCP_SERVERS_SOURCE="$LOCAL_DOTS_EXPANDED/claude/mcp/servers.json"
+        MCP_SERVERS_SOURCE="$DOTLOCAL_EXPANDED/claude/mcp/servers.json"
         CLAUDE_DESKTOP_CONFIG="$CLAUDE_DESKTOP_DIR/claude_desktop_config.json"
         
         if [[ -f "$MCP_SERVERS_SOURCE" ]]; then

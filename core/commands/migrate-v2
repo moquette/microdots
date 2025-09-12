@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+#
+# dots migrate-v2 - Migrate from LOCAL_DOTS to DOTLOCAL naming convention
+#
+# This script helps users transition from the old LOCAL_DOTS variable
+# to the new DOTLOCAL variable naming, maintaining backward compatibility
+
+set -e
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+CORE_DIR="$(dirname "$SCRIPT_DIR")"
+DOTFILES_ROOT="$(dirname "$CORE_DIR")"
+
+# Source UI library
+source "$CORE_DIR/lib/ui.sh"
+source "$CORE_DIR/lib/common.sh"
+
+# Track changes
+changes_made=0
+warnings=0
+
+header "🔄 Dotfiles v2 Migration Tool"
+
+subheader "Overview"
+info "This tool migrates your configuration from LOCAL_DOTS to DOTLOCAL"
+info "The new naming is more consistent with the dotlocal directory convention"
+blank
+
+# Check if already migrated
+if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+    if grep -q "^DOTLOCAL=" "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null; then
+        success "Already migrated! Your config uses DOTLOCAL"
+        info "No changes needed"
+        exit 0
+    fi
+fi
+
+subheader "Step 1: Backup Current Configuration"
+
+# Create backup directory
+backup_dir="$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
+info "Creating backup at: $backup_dir"
+
+if mkdir -p "$backup_dir"; then
+    # Backup dotfiles.conf if it exists
+    if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+        cp "$DOTFILES_ROOT/dotfiles.conf" "$backup_dir/dotfiles.conf"
+        success "Backed up dotfiles.conf"
+    fi
+    
+    # Backup gitconfig if it has .local include
+    if [[ -f "$HOME/.gitconfig" ]]; then
+        cp "$HOME/.gitconfig" "$backup_dir/gitconfig"
+        success "Backed up ~/.gitconfig"
+    fi
+    
+    # Save current configuration state
+    echo "Backup created: $(date)" > "$backup_dir/migration.log"
+    echo "Original branch: $(cd "$DOTFILES_ROOT" && git branch --show-current)" >> "$backup_dir/migration.log"
+    success "Backup complete"
+else
+    error "Failed to create backup directory"
+    exit 1
+fi
+
+blank
+subheader "Step 2: Update dotfiles.conf"
+
+if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+    if grep -q "^LOCAL_DOTS=" "$DOTFILES_ROOT/dotfiles.conf"; then
+        # Get the current value
+        current_value=$(grep "^LOCAL_DOTS=" "$DOTFILES_ROOT/dotfiles.conf" | cut -d'=' -f2-)
+        
+        info "Current setting: LOCAL_DOTS=$current_value"
+        info "Updating to: DOTLOCAL=$current_value"
+        
+        # Update the file
+        sed -i.bak 's/^LOCAL_DOTS=/DOTLOCAL=/g' "$DOTFILES_ROOT/dotfiles.conf"
+        
+        # Also update any comments mentioning LOCAL_DOTS
+        sed -i '' 's/# LOCAL_DOTS=/# DOTLOCAL=/g' "$DOTFILES_ROOT/dotfiles.conf"
+        
+        # Remove backup file
+        rm -f "$DOTFILES_ROOT/dotfiles.conf.bak"
+        
+        success "Updated dotfiles.conf"
+        changes_made=$((changes_made + 1))
+    else
+        info "No LOCAL_DOTS found in dotfiles.conf"
+    fi
+else
+    warning "No dotfiles.conf file found"
+    warnings=$((warnings + 1))
+fi
+
+blank
+subheader "Step 3: Update Git Configuration"
+
+# Check if git config includes .gitconfig.local
+if [[ -f "$HOME/.gitconfig" ]]; then
+    if grep -q "path = ~/.gitconfig.local" "$HOME/.gitconfig"; then
+        info "Found git config with .gitconfig.local include"
+        
+        # For now, we keep the .gitconfig.local name for compatibility
+        # This will be changed in a future phase
+        info "Git config will continue using .gitconfig.local for now"
+        info "Full migration to .gitconfig.dotlocal will come in v3"
+    fi
+fi
+
+blank
+subheader "Step 4: Verify Migration"
+
+# Source the new config
+if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+    source "$DOTFILES_ROOT/dotfiles.conf"
+    
+    if [[ -n "$DOTLOCAL" ]]; then
+        success "DOTLOCAL is set to: $DOTLOCAL"
+        
+        # Check if directory exists
+        if [[ -d "$(eval echo "$DOTLOCAL")" ]]; then
+            success "Directory exists and is accessible"
+        else
+            warning "Directory does not exist: $DOTLOCAL"
+            info "You may need to create it with: mkdir -p $DOTLOCAL"
+            warnings=$((warnings + 1))
+        fi
+    else
+        warning "DOTLOCAL is not set after migration"
+        warnings=$((warnings + 1))
+    fi
+fi
+
+blank
+subheader "Step 5: Apply Changes"
+
+info "Refreshing symlinks with new configuration..."
+if "$DOTFILES_ROOT/core/dots" relink --force; then
+    success "Symlinks refreshed successfully"
+    changes_made=$((changes_made + 1))
+else
+    error "Failed to refresh symlinks"
+    warning "You may need to run 'dots relink' manually"
+    warnings=$((warnings + 1))
+fi
+
+blank
+summary "Migration" $changes_made $warnings 0
+
+if [[ $warnings -gt 0 ]]; then
+    blank
+    warning "Some warnings occurred during migration"
+    info "Review the messages above and take action if needed"
+fi
+
+blank
+subheader "Next Steps"
+
+info "1. Run 'dots status' to verify your configuration"
+info "2. Test that everything works as expected"
+info "3. If issues occur, restore from backup at: $backup_dir"
+
+blank
+success "Migration complete! Your dotfiles now use DOTLOCAL"
+
+# Create marker file to indicate successful migration
+echo "Migrated to v2 on $(date)" > "$DOTFILES_ROOT/.migrated-v2"
+
+exit 0

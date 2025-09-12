@@ -62,8 +62,9 @@ echo -e "${GREEN}✅ Authentication successful${NC}\n"
 # Now ask for local path
 if [ -n "$1" ]; then
     LOCAL_DOTS="$1"
-    echo -e "${YELLOW}📍 Using provided path: $LOCAL_DOTS${NC}\n"
-    LOCAL_LINE="LOCAL_DOTS=\"$LOCAL_DOTS\""
+    DOTLOCAL="$1"
+    echo -e "${YELLOW}📍 Using provided path: $DOTLOCAL${NC}\n"
+    LOCAL_LINE="DOTLOCAL=\"$DOTLOCAL\""
 else
     # Local configuration header
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -83,7 +84,8 @@ else
             ;;
         2)
             LOCAL_DOTS=""
-            LOCAL_LINE="# LOCAL_DOTS=\"\$HOME/.dotlocal\""
+            DOTLOCAL=""
+            LOCAL_LINE="# DOTLOCAL=\"\$HOME/.dotlocal\""
             echo -e "${YELLOW}⚠ Local configurations disabled${NC}\n"
             ;;
         3)
@@ -94,17 +96,20 @@ else
                 cancel_install
             fi
             LOCAL_DOTS="$custom_path"
-            LOCAL_LINE="LOCAL_DOTS=\"$custom_path\""
+            DOTLOCAL="$custom_path"
+            LOCAL_LINE="DOTLOCAL=\"$custom_path\""
             echo -e "${GREEN}✓ Using custom path: $custom_path${NC}\n"
             ;;
         1|"")
             LOCAL_DOTS="~/.dotlocal"
-            LOCAL_LINE="LOCAL_DOTS=\"\$HOME/.dotlocal\""
+            DOTLOCAL="~/.dotlocal"
+            LOCAL_LINE="DOTLOCAL=\"\$HOME/.dotlocal\""
             echo -e "${GREEN}✓ Using default: ~/.dotlocal${NC}\n"
             ;;
         *)
             LOCAL_DOTS="~/.dotlocal"
-            LOCAL_LINE="LOCAL_DOTS=\"\$HOME/.dotlocal\""
+            DOTLOCAL="~/.dotlocal"
+            LOCAL_LINE="DOTLOCAL=\"\$HOME/.dotlocal\""
             echo -e "${GREEN}✓ Using default: ~/.dotlocal${NC}\n"
             ;;
     esac
@@ -203,8 +208,8 @@ echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Installation completed at: $(date)"
-if [ -n "$LOCAL_DOTS" ]; then
-    echo "Local directory: $LOCAL_DOTS"
+if [ -n "$DOTLOCAL" ]; then
+    echo "Local directory: $DOTLOCAL"
 else
     echo "Local directory: DISABLED"
 fi

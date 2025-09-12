@@ -91,27 +91,35 @@ if [[ "$apps_only" != "true" ]]; then
   done
 fi
 
-# Load LOCAL_DOTS from dotfiles.conf if it exists
+# Load DOTLOCAL or LOCAL_DOTS from dotfiles.conf if it exists
 LOCAL_DOTS=""
+DOTLOCAL=""
 if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     # Source only variable assignments, not commands
     eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
+    
+    # Support both variable names (DOTLOCAL takes precedence)
+    if [[ -n "$DOTLOCAL" ]]; then
+        LOCAL_DOTS="$DOTLOCAL"  # Use new name internally
+    elif [[ -n "$LOCAL_DOTS" ]]; then
+        DOTLOCAL="$LOCAL_DOTS"  # Backward compatibility
+    fi
 fi
 
 # Process local directory based on mode
-if [[ -n "$LOCAL_DOTS" ]]; then
-  # Expand tilde in LOCAL_DOTS path
-  LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
+if [[ -n "$DOTLOCAL" ]]; then
+  # Expand tilde in DOTLOCAL path
+  DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
   
   if [[ "$apps_only" == "true" ]]; then
     # Process *.apps files when --apps flag is set
-    if [[ -d "$LOCAL_DOTS_EXPANDED/homebrew" ]]; then
+    if [[ -d "$DOTLOCAL_EXPANDED/homebrew" ]]; then
       info "Processing *.apps Brewfiles..."
       blank
       
       apps_found=false
       # Process both *.apps pattern and Brewfile.apps
-      for apps_file in "$LOCAL_DOTS_EXPANDED/homebrew"/*.apps "$LOCAL_DOTS_EXPANDED/homebrew"/Brewfile.apps; do
+      for apps_file in "$DOTLOCAL_EXPANDED/homebrew"/*.apps "$DOTLOCAL_EXPANDED/homebrew"/Brewfile.apps; do
         if [ -f "$apps_file" ]; then
           apps_found=true
           apps_name=$(basename "$apps_file")
@@ -131,19 +139,19 @@ if [[ -n "$LOCAL_DOTS" ]]; then
       done
       
       if [[ "$apps_found" == "false" ]]; then
-        warning "No *.apps or Brewfile.apps files found in $LOCAL_DOTS_EXPANDED/homebrew/"
+        warning "No *.apps or Brewfile.apps files found in $DOTLOCAL_EXPANDED/homebrew/"
         info "Create files with .apps extension (e.g., productivity.apps, development.apps) or Brewfile.apps"
       fi
     else
-      warning "No homebrew directory found in $LOCAL_DOTS_EXPANDED"
+      warning "No homebrew directory found in $DOTLOCAL_EXPANDED"
     fi
   else
     # Regular installation mode - process topic installers
-    if [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
+    if [[ -d "$DOTLOCAL_EXPANDED" ]]; then
       info "Processing local topic installers..."
       blank
       
-      for topic_dir in "$LOCAL_DOTS_EXPANDED"/*/; do
+      for topic_dir in "$DOTLOCAL_EXPANDED"/*/; do
         [ ! -d "$topic_dir" ] && continue
         topic=$(basename "$topic_dir")
         

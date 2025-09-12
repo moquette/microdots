@@ -14,11 +14,19 @@ source "$CORE_DIR/lib/common.sh"
 source "$CORE_DIR/lib/validate-config.sh"
 source "$CORE_DIR/lib/ui.sh"
 
-# Load LOCAL_DOTS from dotfiles.conf if it exists
+# Load DOTLOCAL or LOCAL_DOTS from dotfiles.conf if it exists
 LOCAL_DOTS=""
+DOTLOCAL=""
 if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     # Source only variable assignments, not commands
     eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
+    
+    # Support both variable names (DOTLOCAL takes precedence)
+    if [[ -n "$DOTLOCAL" ]]; then
+        LOCAL_DOTS="$DOTLOCAL"  # Use new name internally
+    elif [[ -n "$LOCAL_DOTS" ]]; then
+        DOTLOCAL="$LOCAL_DOTS"  # Backward compatibility
+    fi
 fi
 
 # Parse options
@@ -87,43 +95,43 @@ blank
 subheader "Local Configuration"
 
 # Local directory status
-if [[ -n "$LOCAL_DOTS" ]]; then
-    # Expand tilde in LOCAL_DOTS path
-    LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
-    key_value "LOCAL_DOTS" "$LOCAL_DOTS"
+if [[ -n "$DOTLOCAL" ]]; then
+    # Expand tilde in DOTLOCAL path
+    DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
+    key_value "DOTLOCAL" "$DOTLOCAL"
     
-    if [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
+    if [[ -d "$DOTLOCAL_EXPANDED" ]]; then
         key_value "Status" "Active"
         if [[ "$verbose" == "true" ]]; then
             # Count symlink files in local
-            local_symlink_count=$(find "$LOCAL_DOTS_EXPANDED" -name "*.symlink" 2>/dev/null | wc -l | tr -d ' ')
+            local_symlink_count=$(find "$DOTLOCAL_EXPANDED" -name "*.symlink" 2>/dev/null | wc -l | tr -d ' ')
             key_value "Symlink files" "$local_symlink_count"
             
             # Check for important local files
             info "Key files:"
-            [[ -f "$LOCAL_DOTS_EXPANDED/localrc.symlink" ]] && list_item "localrc.symlink"
-            [[ -d "$LOCAL_DOTS_EXPANDED/shell" ]] && list_item "shell/"
-            [[ -d "$LOCAL_DOTS_EXPANDED/bin" ]] && list_item "bin/"
-            [[ -d "$LOCAL_DOTS_EXPANDED/ssh.symlink" ]] && list_item "ssh.symlink/"
+            [[ -f "$DOTLOCAL_EXPANDED/localrc.symlink" ]] && list_item "localrc.symlink"
+            [[ -d "$DOTLOCAL_EXPANDED/shell" ]] && list_item "shell/"
+            [[ -d "$DOTLOCAL_EXPANDED/bin" ]] && list_item "bin/"
+            [[ -d "$DOTLOCAL_EXPANDED/ssh.symlink" ]] && list_item "ssh.symlink/"
             
             # Check core symlink
-            if [[ -L "$LOCAL_DOTS_EXPANDED/core" ]]; then
-                core_target=$(readlink "$LOCAL_DOTS_EXPANDED/core")
+            if [[ -L "$DOTLOCAL_EXPANDED/core" ]]; then
+                core_target=$(readlink "$DOTLOCAL_EXPANDED/core")
                 if [[ "$core_target" == "$DOTFILES_ROOT/core" ]]; then
                     list_item "core → $DOTFILES_ROOT/core ✓"
                 else
                     list_item "core → $core_target (incorrect)"
                 fi
-            elif [[ -e "$LOCAL_DOTS_EXPANDED/core" ]]; then
+            elif [[ -e "$DOTLOCAL_EXPANDED/core" ]]; then
                 list_item "core (not a symlink!)"
             fi
         fi
     else
         key_value "Status" "Directory not found"
-        warning "Local directory configured but does not exist: $LOCAL_DOTS"
+        warning "Local directory configured but does not exist: $DOTLOCAL"
     fi
 else
-    key_value "LOCAL_DOTS" "Not configured"
+    key_value "DOTLOCAL" "Not configured"
     key_value "Status" "Using public configs only"
 fi
 
@@ -145,7 +153,7 @@ fi
 # Check ~/.dotlocal directory
 if [[ -d "$HOME/.dotlocal" ]]; then
     info "~/.dotlocal: Directory exists"
-    if [[ "$LOCAL_DOTS" == "$HOME/.dotlocal" ]]; then
+    if [[ "$DOTLOCAL" == "$HOME/.dotlocal" ]]; then
         indent "Status: Currently in use" 2
     else
         indent "Status: Present but not in use" 2
@@ -173,7 +181,7 @@ if [[ "$show_symlinks" == "true" ]]; then
                 broken_symlink_count=$((broken_symlink_count + 1))
             elif [[ "$target" == *"$DOTFILES_ROOT"* ]]; then
                 public_symlink_count=$((public_symlink_count + 1))
-            elif [[ -n "$LOCAL_DOTS_EXPANDED" && "$target" == *"$LOCAL_DOTS_EXPANDED"* ]]; then
+            elif [[ -n "$DOTLOCAL_EXPANDED" && "$target" == *"$DOTLOCAL_EXPANDED"* ]]; then
                 local_symlink_count=$((local_symlink_count + 1))
             fi
         fi
@@ -310,8 +318,8 @@ fi
 # Summary
 blank
 subheader "Summary"
-if [[ -n "$LOCAL_DOTS" ]] && [[ -d "$LOCAL_DOTS_EXPANDED" ]]; then
-    success "Local overrides are ACTIVE from: $LOCAL_DOTS"
+if [[ -n "$DOTLOCAL" ]] && [[ -d "$DOTLOCAL_EXPANDED" ]]; then
+    success "Local overrides are ACTIVE from: $DOTLOCAL"
     info "Run 'dots relink' to refresh symlinks with local precedence"
 else
     info "Using public configurations only"

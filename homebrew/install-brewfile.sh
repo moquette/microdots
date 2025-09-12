@@ -7,12 +7,18 @@
 # Get the dotfiles root directory
 DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 
-# Load LOCAL_DOTS from dotfiles.conf if it exists
+# Load DOTLOCAL or LOCAL_DOTS from dotfiles.conf if it exists
 LOCAL_DIR=""
 if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     # Source only variable assignments, not commands
     eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
-    LOCAL_DIR="$LOCAL_DOTS"
+    
+    # Support both variable names (DOTLOCAL takes precedence)
+    if [[ -n "$DOTLOCAL" ]]; then
+        LOCAL_DIR="$DOTLOCAL"
+    elif [[ -n "$LOCAL_DOTS" ]]; then
+        LOCAL_DIR="$LOCAL_DOTS"
+    fi
 fi
 
 echo "› Homebrew Brewfile installer (legacy)"

@@ -144,14 +144,23 @@ install_dotfiles() {
   # Source the symlink library for proper precedence handling
   source "$DOTFILES_ROOT/core/lib/symlink.sh"
   
-  # Load LOCAL_DOTS from dotfiles.conf if it exists
+  # Load DOTLOCAL or LOCAL_DOTS from dotfiles.conf if it exists
   local local_dir=""
   if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     # Source only variable assignments, not commands
+    eval "$(grep '^DOTLOCAL=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
     eval "$(grep '^LOCAL_DOTS=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
+    
+    # Support both variable names (DOTLOCAL takes precedence)
+    if [[ -n "$DOTLOCAL" ]]; then
+      LOCAL_DOTS="$DOTLOCAL"  # Use new name internally
+    elif [[ -n "$LOCAL_DOTS" ]]; then
+      DOTLOCAL="$LOCAL_DOTS"  # Backward compatibility
+    fi
+    
     # Expand the path to handle tilde and variables
-    if [[ -n "$LOCAL_DOTS" ]]; then
-      local_dir=$(expand_path "$LOCAL_DOTS")
+    if [[ -n "$DOTLOCAL" ]]; then
+      local_dir=$(expand_path "$DOTLOCAL")
     fi
   fi
   
@@ -161,29 +170,37 @@ install_dotfiles() {
 }
 
 setup_dotlocal_symlink() {
-  # Check if dotfiles.conf exists and has LOCAL_DOTS set
+  # Check if dotfiles.conf exists and has DOTLOCAL or LOCAL_DOTS set
   if [ -f "$DOTFILES_ROOT/dotfiles.conf" ]; then
-    # Source the config file to get LOCAL_DOTS
+    # Source the config file to get DOTLOCAL or LOCAL_DOTS
     source "$DOTFILES_ROOT/dotfiles.conf"
     
-    if [ -n "$LOCAL_DOTS" ]; then
-      # Expand tilde in LOCAL_DOTS path
-      LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
-      # The symlink is always named .local (convention), target comes from config
+    # Support both variable names (DOTLOCAL takes precedence)
+    if [ -n "$DOTLOCAL" ]; then
+      LOCAL_DOTS="$DOTLOCAL"  # Use new name internally
+    elif [ -n "$LOCAL_DOTS" ]; then
+      DOTLOCAL="$LOCAL_DOTS"  # Backward compatibility
+    fi
+    
+    if [ -n "$DOTLOCAL" ]; then
+      # Expand tilde in DOTLOCAL path
+      DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
+      # For now, keep symlink as .local for backward compatibility
+      # Will change to .dotlocal in phase 2
       LOCAL_SYMLINK_PATH="$DOTFILES_ROOT/.local"
       
       # Check if the local dots directory exists
-      if [ -d "$LOCAL_DOTS_EXPANDED" ]; then
+      if [ -d "$DOTLOCAL_EXPANDED" ]; then
         # Create symlink if it doesn't exist
         if [ ! -e "$LOCAL_SYMLINK_PATH" ]; then
-          ln -sfn "$LOCAL_DOTS_EXPANDED" "$LOCAL_SYMLINK_PATH"
-          success "Created local symlink: $LOCAL_SYMLINK_PATH → $LOCAL_DOTS"
+          ln -sfn "$DOTLOCAL_EXPANDED" "$LOCAL_SYMLINK_PATH"
+          success "Created local symlink: $LOCAL_SYMLINK_PATH → $DOTLOCAL"
         elif [ -L "$LOCAL_SYMLINK_PATH" ]; then
           # Update existing symlink if it points to wrong location
           current_target=$(readlink "$LOCAL_SYMLINK_PATH")
-          if [ "$current_target" != "$LOCAL_DOTS_EXPANDED" ]; then
-            ln -sfn "$LOCAL_DOTS_EXPANDED" "$LOCAL_SYMLINK_PATH"
-            success "Updated local symlink: $LOCAL_SYMLINK_PATH → $LOCAL_DOTS"
+          if [ "$current_target" != "$DOTLOCAL_EXPANDED" ]; then
+            ln -sfn "$DOTLOCAL_EXPANDED" "$LOCAL_SYMLINK_PATH"
+            success "Updated local symlink: $LOCAL_SYMLINK_PATH → $DOTLOCAL"
           else
             success "Local symlink already configured correctly"
           fi
@@ -191,8 +208,8 @@ setup_dotlocal_symlink() {
           warning "$LOCAL_SYMLINK_PATH exists but is not a symlink"
         fi
         
-        # Create core symlink in LOCAL_DOTS pointing back to dotfiles/core
-        CORE_SYMLINK_PATH="$LOCAL_DOTS_EXPANDED/core"
+        # Create core symlink in DOTLOCAL pointing back to dotfiles/core
+        CORE_SYMLINK_PATH="$DOTLOCAL_EXPANDED/core"
         if [ ! -e "$CORE_SYMLINK_PATH" ]; then
           ln -sfn "$DOTFILES_ROOT/core" "$CORE_SYMLINK_PATH"
           success "Created core symlink in local: $CORE_SYMLINK_PATH → $DOTFILES_ROOT/core"
@@ -209,8 +226,8 @@ setup_dotlocal_symlink() {
           warning "$CORE_SYMLINK_PATH exists but is not a symlink"
         fi
       else
-        warning "LOCAL_DOTS is set to '$LOCAL_DOTS' but directory does not exist"
-        info "Create it with: mkdir -p $LOCAL_DOTS"
+        warning "DOTLOCAL is set to '$DOTLOCAL' but directory does not exist"
+        info "Create it with: mkdir -p $DOTLOCAL"
       fi
     fi
   fi

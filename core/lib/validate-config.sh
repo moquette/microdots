@@ -18,18 +18,26 @@ validate_dotfiles_conf() {
         return 0  # No config file is valid
     fi
     
-    # Check for multiple LOCAL_DOTS definitions
-    local path_count
+    # Check for multiple LOCAL_DOTS or DOTLOCAL definitions
+    local path_count dotlocal_count
     path_count=$(grep "^LOCAL_DOTS=" "$config_file" 2>/dev/null | wc -l | tr -d ' ')
+    dotlocal_count=$(grep "^DOTLOCAL=" "$config_file" 2>/dev/null | wc -l | tr -d ' ')
     
-    if [[ "$path_count" -gt 1 ]]; then
-        error "Multiple LOCAL_DOTS definitions found in dotfiles.conf"
-        error "Found $path_count definitions. Only one should be active."
-        grep -n "^LOCAL_DOTS=" "$config_file" | while read -r line; do
+    if [[ "$path_count" -gt 1 ]] || [[ "$dotlocal_count" -gt 1 ]]; then
+        error "Multiple LOCAL_DOTS/DOTLOCAL definitions found in dotfiles.conf"
+        error "Found $path_count LOCAL_DOTS and $dotlocal_count DOTLOCAL definitions. Only one should be active."
+        grep -n "^LOCAL_DOTS=\|^DOTLOCAL=" "$config_file" | while read -r line; do
             warning "  $line"
         done
         error "The last definition will take precedence, which may not be intended."
         errors=1
+    fi
+    
+    # Check if both OLD and NEW variables are defined
+    if [[ "$path_count" -gt 0 ]] && [[ "$dotlocal_count" -gt 0 ]]; then
+        warning "Both LOCAL_DOTS and DOTLOCAL are defined"
+        warning "DOTLOCAL will take precedence. Consider removing LOCAL_DOTS."
+        warnings=1
     fi
     
     # Check for uncommented example commands
@@ -43,22 +51,22 @@ validate_dotfiles_conf() {
         errors=1
     fi
     
-    # Check if LOCAL_DOTS and symlink creation are both active
-    if [[ "$path_count" -gt 0 ]] && grep -q "^ln -s.*local" "$config_file" 2>/dev/null; then
-        warning "Both LOCAL_DOTS and symlink creation are active"
+    # Check if DOTLOCAL/LOCAL_DOTS and symlink creation are both active
+    if [[ "$path_count" -gt 0 || "$dotlocal_count" -gt 0 ]] && grep -q "^ln -s.*local" "$config_file" 2>/dev/null; then
+        warning "Both DOTLOCAL/LOCAL_DOTS and symlink creation are active"
         echo -e "${YELLOW}         This may cause conflicts. Use only one method.${NC}" >&2
         warnings=1
     fi
     
-    # Check if LOCAL_DOTS points to a non-existent directory
-    if [[ "$path_count" -eq 1 ]]; then
+    # Check if DOTLOCAL/LOCAL_DOTS points to a non-existent directory
+    if [[ "$path_count" -eq 1 ]] || [[ "$dotlocal_count" -eq 1 ]]; then
         local configured_path
-        configured_path=$(source "$config_file" 2>/dev/null && echo "${LOCAL_DOTS:-}" || true)
+        configured_path=$(source "$config_file" 2>/dev/null && echo "${DOTLOCAL:-${LOCAL_DOTS:-}}" || true)
         if [[ -n "$configured_path" ]]; then
             # Expand tilde in path using common function
             local expanded_path=$(expand_path "$configured_path")
             if [[ ! -d "$expanded_path" ]]; then
-                warning "LOCAL_DOTS points to non-existent directory:"
+                warning "DOTLOCAL/LOCAL_DOTS points to non-existent directory:"
                 echo -e "${YELLOW}         $configured_path${NC}" >&2
                 echo -e "${YELLOW}         Create this directory or update the configuration.${NC}" >&2
                 warnings=1

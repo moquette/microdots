@@ -9,13 +9,21 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../lib/common.sh"
 
-# Load LOCAL_DOTS from dotfiles.conf if it exists
+# Load DOTLOCAL or LOCAL_DOTS from dotfiles.conf if it exists
 DOTFILES_ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
 DOTFILES_DIR="$DOTFILES_ROOT"  # For compatibility
 LOCAL_DOTS=""
+DOTLOCAL=""
 if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     # Source only variable assignments, not commands
     eval "$(grep '^[A-Z_]*=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
+    
+    # Support both variable names (DOTLOCAL takes precedence)
+    if [[ -n "$DOTLOCAL" ]]; then
+        LOCAL_DOTS="$DOTLOCAL"  # Use new name internally
+    elif [[ -n "$LOCAL_DOTS" ]]; then
+        DOTLOCAL="$LOCAL_DOTS"  # Backward compatibility
+    fi
 fi
 
 # Don't override the UI library header function
@@ -269,11 +277,11 @@ check_symlinks() {
         # Check if there's a local override
         local relative_path="${src#$DOTFILES_DIR/}"
         local local_override=""
-        if [[ -n "$LOCAL_DOTS" ]]; then
-            # Expand tilde in LOCAL_DOTS path
-            local LOCAL_DOTS_EXPANDED=$(expand_path "$LOCAL_DOTS")
-            if [[ -f "$LOCAL_DOTS_EXPANDED/${relative_path}" ]]; then
-                local_override="$LOCAL_DOTS_EXPANDED/${relative_path}"
+        if [[ -n "$DOTLOCAL" ]]; then
+            # Expand tilde in DOTLOCAL path
+            local DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
+            if [[ -f "$DOTLOCAL_EXPANDED/${relative_path}" ]]; then
+                local_override="$DOTLOCAL_EXPANDED/${relative_path}"
             fi
         fi
         
