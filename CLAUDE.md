@@ -6,9 +6,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Before ANY work begins, you MUST read and internalize:
 
-- Your configuration from @~/.claude/README.md
-- Your protocol @~/.claude/PROTOCOL.md
-- Strictly adhere to all documentation rules
+1. **Global Configuration:**
+   - Your configuration from @~/.claude/README.md
+   - Your protocol @~/.claude/PROTOCOL.md
+
+2. **Architecture Documentation:**
+   - @MICRODOTS.md - Complete architecture guide
+   - @docs/IMPLEMENTATION.md - Technical implementation details
+   - @docs/COMPLIANCE.md - System compliance assessment
+   - @docs/LOCAL_OVERRIDES.md - Dotlocal system documentation
+   - @docs/UI_STYLE_GUIDE.md - UI library and output standards
+
+3. **Confirmation Required:**
+   After reading all documentation, you MUST provide this visual confirmation:
+   ```
+   ✅ Documentation Initialized:
+   - [x] ~/.claude/README.md - Global configuration loaded
+   - [x] ~/.claude/PROTOCOL.md - Autonomous execution protocol internalized
+   - [x] MICRODOTS.md - Architecture guide understood
+   - [x] docs/IMPLEMENTATION.md - Technical details reviewed
+   - [x] docs/COMPLIANCE.md - Compliance standards acknowledged
+   - [x] docs/LOCAL_OVERRIDES.md - Dotlocal system understood
+   - [x] docs/UI_STYLE_GUIDE.md - UI standards loaded
+   ```
+   
+   Only after displaying this confirmation should you proceed with any tasks.
+
+4. **Strictly adhere to all documentation rules**
 
 ## Project Overview
 
@@ -62,15 +86,22 @@ ZSH=~/.dotfiles zsh -x -c 'source ~/.zshrc' 2>&1 | head -20
 tests/unit/test_portability.sh  # Check for portability issues
 ```
 
-## Documentation
+## Documentation Structure
 
-The `docs/` folder contains detailed architectural and implementation documentation:
+The documentation is organized hierarchically for clarity:
 
-- **`docs/ARCHITECTURE.md`** - Complete system architecture, topic structure, and installation flow
+### Root Documentation (Essential Reading)
+- **`README.md`** - Project overview and quick start
+- **`CLAUDE.md`** - This file, AI agent configuration  
+- **`MICRODOTS.md`** - Complete architecture guide with testing & troubleshooting
+
+### Reference Documentation (`docs/` folder)
+- **`docs/IMPLEMENTATION.md`** - Technical implementation details and internals
+- **`docs/COMPLIANCE.md`** - System compliance assessment and validation
 - **`docs/LOCAL_OVERRIDES.md`** - Comprehensive dotlocal system documentation with precedence rules
 - **`docs/UI_STYLE_GUIDE.md`** - UI library usage and output formatting standards
 
-Refer to these documents for in-depth understanding of specific subsystems.
+**IMPORTANT:** All documents in the `docs/` folder are required reading as specified in the MANDATORY READING REQUIREMENTS section above.
 
 ## High-Level Architecture
 
