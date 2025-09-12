@@ -13,7 +13,13 @@ fi
 
 # Fallback checks if not found via config
 if [[ -z "$LOCAL_FUNCTIONS" ]]; then
-  if [[ -L "$ZSH/.local" ]] && [[ -d "$(readlink "$ZSH/.local")/functions" ]]; then
+  # Check .dotlocal first (new standard)
+  if [[ -L "$ZSH/.dotlocal" ]] && [[ -d "$(readlink "$ZSH/.dotlocal")/functions" ]]; then
+    LOCAL_FUNCTIONS="$(readlink "$ZSH/.dotlocal")/functions"
+  elif [[ -d "$ZSH/.dotlocal/functions" ]]; then
+    LOCAL_FUNCTIONS="$ZSH/.dotlocal/functions"
+  # Fallback to .local for backward compatibility
+  elif [[ -L "$ZSH/.local" ]] && [[ -d "$(readlink "$ZSH/.local")/functions" ]]; then
     LOCAL_FUNCTIONS="$(readlink "$ZSH/.local")/functions"
   elif [[ -d "$ZSH/.local/functions" ]]; then
     LOCAL_FUNCTIONS="$ZSH/.local/functions"
