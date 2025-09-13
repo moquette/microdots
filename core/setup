@@ -60,7 +60,10 @@ SUDO_PID=$!
 echo -e "${GREEN}✅ Authentication successful${NC}\n"
 
 # Now ask for local path
-if [ -n "$1" ]; then
+# When run via bash -c "$(curl ...)", there are no real arguments
+# The script itself becomes $0 and there's no $1
+# Only use $1 if it exists and doesn't look like script content
+if [ -n "$1" ] && [[ ! "$1" =~ ^#!.*bash ]] && [[ ${#1} -lt 100 ]]; then
     DOTLOCAL="$1"
     echo -e "${YELLOW}📍 Using provided path: $DOTLOCAL${NC}\n"
     LOCAL_LINE="DOTLOCAL=\"$DOTLOCAL\""
