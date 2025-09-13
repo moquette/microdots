@@ -33,6 +33,7 @@ tests/archived/
 
 
 # System files
+__MACOSX 
 .DS_Store
 *.swp
 *.swo
