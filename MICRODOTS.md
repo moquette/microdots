@@ -124,11 +124,32 @@ topic-name/                    # Microdot root (the service boundary)
 ├── functions.zsh             # Helper functions (loaded 2nd)
 ├── completion.zsh            # Tab completions (loaded 4th)
 ├── *.symlink                 # Files to link to $HOME
-├── install.sh                # Installation & dependency management
+├── install.sh                # Installation & dependency management (OPTIONAL)
 ├── README.md                 # Documentation
 └── lib/                      # Internal libraries (optional)
     └── helpers.zsh           # Shared functions within microdot
 ```
+
+### When to Include install.sh
+
+**CREATE install.sh when your topic needs to:**
+- Install external tools or dependencies (via package managers)
+- Download or compile software
+- Configure system settings or services
+- Set up complex directory structures
+- Initialize databases or external resources
+- Register services or daemons
+
+**SKIP install.sh when your topic only provides:**
+- Configuration files (*.symlink)
+- Shell aliases and functions (*.zsh)
+- Environment variables and PATH setup
+- Pure shell scripting without external dependencies
+- Documentation or reference materials
+
+**Decision Criteria:**
+> If removing your topic directory breaks functionality due to **missing external dependencies**, you need install.sh.
+> If your topic works purely through configuration and shell integration, install.sh is unnecessary.
 
 ### Self-Containment Rules
 
@@ -270,9 +291,10 @@ ssh/
   config.symlink               # → ~/.ssh/config
 ```
 
-### `install.sh` - Dependency Management
-**Purpose**: Install and configure the microdot's dependencies
-**When**: Run during system installation/updates
+### `install.sh` - Dependency Management (Optional)
+**Purpose**: Install and configure the microdot's external dependencies
+**When**: Run during system installation/updates (only if file exists)
+**Required**: Only for topics with external dependencies or system configuration needs
 **Pattern**: Idempotent, defensive, informative
 
 ```bash
@@ -421,7 +443,7 @@ source "$DOTFILES_ROOT/other-tool/lib.zsh"  # Creates coupling!
 #### 1. Hardcoded Paths
 ```bash
 # BAD: User-specific paths
-source /Users/myname/.dotfiles/tool/config.zsh
+source "$HOME/.dotfiles/tool/config.zsh"
 
 # GOOD: Dynamic paths
 source "${0:A:h}/config.zsh"
@@ -460,14 +482,17 @@ tool_config() { ... }
 
 ## Implementation Examples
 
-### Example 1: Simple Tool Microdot
+### Example 1: Configuration-Only Microdot (No install.sh needed)
 
 ```bash
-docker/
-├── aliases.zsh          # Docker shortcuts
-├── functions.zsh        # Docker helper functions
-└── install.sh          # Install Docker
+git/
+├── gitconfig.symlink    # → ~/.gitconfig
+├── gitignore.symlink    # → ~/.gitignore
+├── aliases.zsh          # Git aliases
+└── functions.zsh        # Git helper functions
 ```
+
+**No install.sh needed** - This topic only provides configuration files and shell integration for an existing tool (git).
 
 **aliases.zsh:**
 ```bash
@@ -481,17 +506,16 @@ if command -v docker >/dev/null 2>&1; then
 fi
 ```
 
-### Example 2: Complex Tool with Environment
+### Example 2: Tool with Dependencies (install.sh required)
 
 ```bash
-python/
-├── path.zsh             # Python environment setup
-├── config.zsh           # Pyenv and tool configuration
-├── aliases.zsh          # Python shortcuts
-├── functions.zsh        # Python helpers
-├── completion.zsh       # Python completions
-└── install.sh          # Install Python tools
+docker/
+├── aliases.zsh          # Docker shortcuts
+├── functions.zsh        # Docker helper functions
+└── install.sh           # Install Docker via package manager
 ```
+
+**install.sh required** - This topic needs to install Docker itself, not just configure it.
 
 **path.zsh:**
 ```bash
@@ -508,16 +532,19 @@ if [[ -d "$HOME/.poetry" ]]; then
 fi
 ```
 
-### Example 3: Microdot with Configuration Files
+### Example 3: Complex Tool with Environment (install.sh required)
 
 ```bash
-git/
-├── gitconfig.symlink    # → ~/.gitconfig
-├── gitignore.symlink    # → ~/.gitignore
-├── aliases.zsh          # Git aliases
-├── functions.zsh        # Git helper functions
-└── install.sh          # Install git extras
+python/
+├── path.zsh             # Python environment setup
+├── config.zsh           # Pyenv and tool configuration
+├── aliases.zsh          # Python shortcuts
+├── functions.zsh        # Python helpers
+├── completion.zsh       # Python completions
+└── install.sh           # Install Python tools (pyenv, poetry, etc.)
 ```
+
+**install.sh required** - This topic needs to install external Python tools and managers.
 
 ### Example 4: Self-Contained Service (Backup Example)
 
@@ -569,7 +596,7 @@ A microdot is a **self-contained configuration microservice** that manages one s
 ├── functions.zsh            # Helper functions (loaded SECOND)
 ├── completion.zsh           # Tab completions (loaded LAST)
 ├── *.symlink               # Config files → linked to $HOME
-├── install.sh              # Dependency installation (idempotent)
+├── install.sh              # Dependency installation (ONLY if needed)
 ├── README.md               # Documentation
 └── {project-files}         # Original project files (if executable tool)
 ```
@@ -673,12 +700,32 @@ success "{tool} microdot installed successfully"
 - Use relative paths within microdot (`${0:A:h}/file.zsh`)
 - Prefix all functions/variables with tool name
 - Handle missing dependencies gracefully
-- Make install.sh idempotent (can run multiple times)
+- Create install.sh ONLY if external dependencies are required
+- Make install.sh idempotent (can run multiple times) when present
+
+### 📋 INSTALL.SH DECISION CRITERIA:
+
+**CREATE install.sh when your microdot needs to:**
+- Install packages via Homebrew, apt, yum, or other package managers
+- Download files or tools from the internet
+- Compile software from source code
+- Configure system services or daemons
+- Set up complex directory structures with specific permissions
+- Initialize databases or external resources
+
+**SKIP install.sh when your microdot only provides:**
+- Configuration files (*.symlink)
+- Shell aliases, functions, and environment setup (*.zsh)
+- PATH modifications and environment variables
+- Customization of existing, pre-installed tools
+- Documentation or reference materials
+
+**Rule of thumb:** If your microdot works purely through configuration and shell integration without needing to install anything external, DO NOT create an install.sh file.
 
 ### ❌ NEVER DO:
 - Reference other microdots (`source $DOTFILES_ROOT/other-tool/...`)
 - Assume tools exist without checking
-- Use hardcoded paths (`/Users/name/...`)
+- Use hardcoded paths (like `/Users/username/...`)
 - Create global namespace pollution
 - Fail without graceful degradation
 - Use generic function/variable names

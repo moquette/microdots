@@ -8,6 +8,14 @@ set -euo pipefail
 VALIDATE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$VALIDATE_SCRIPT_DIR/common.sh"
 
+# Define color codes if not already defined
+if [[ -z "${YELLOW:-}" ]]; then
+    YELLOW='\033[0;33m'
+fi
+if [[ -z "${NC:-}" ]]; then
+    NC='\033[0m' # No Color
+fi
+
 # Validate dotfiles.conf for common issues
 validate_dotfiles_conf() {
     local config_file="${1:-$HOME/.dotfiles/dotfiles.conf}"

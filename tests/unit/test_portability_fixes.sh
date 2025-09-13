@@ -24,7 +24,7 @@ if [ -f "$mcp_config" ]; then
     exit 1
   fi
   
-  if ! grep -q '/Users/moquette' "$mcp_config"; then
+  if ! grep -q '/Users/[^/]*/' "$mcp_config"; then
     echo "   No hardcoded username paths found in MCP config"
   else
     echo "  L Still found hardcoded username paths in MCP config"
@@ -134,8 +134,8 @@ echo " TEST 6: Final Hardcoded Path Scan"
 
 # Check for common hardcoded patterns (excluding standard system paths)
 hardcoded_patterns=(
-  "/Users/moquette"
-  "/Users/[a-zA-Z]"
+  "/Users/[^/]+"
+  "/home/[^/]+"
 )
 
 issues_found=0

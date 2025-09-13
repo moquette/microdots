@@ -171,7 +171,7 @@ elif [[ "$CONFIG_LOCATION" == "public" ]]; then
         jq -r '.mcpServers | to_entries[] | "    - \(.key)"' "$MCP_CONFIG" 2>/dev/null || echo "    Unable to parse configuration"
     fi
 else
-    echo "     No servers.json found in local or public"
+    echo "  ï¿½  No servers.json found in local or public"
     echo "     Checked: $ZSH/.local/claude/mcp/"
     echo "     Checked: $ZSH/claude/mcp/"
 fi
@@ -183,7 +183,7 @@ if [ -d "/Applications/Claude Code.app" ]; then
 elif command -v claude >/dev/null 2>&1; then
     echo "   Claude Code CLI found: $(which claude)"
 else
-    echo "     Claude Code app not found in /Applications"
+    echo "  ï¿½  Claude Code app not found in /Applications"
 fi
 EOF
     chmod +x "$claude_dir/mcp/mcp-status"
@@ -201,7 +201,7 @@ create_test_claude_topic_local() {
   "mcpServers": {
     "local-filesystem": {
       "command": "npx",
-      "args": ["-y", "@anthropic/filesystem-mcp-server", "/Users/me/Code"],
+      "args": ["-y", "@anthropic/filesystem-mcp-server", "\$HOME/Code"],
       "type": "stdio"
     },
     "local-memory": {
@@ -657,7 +657,7 @@ EOF
 main() {
     setup_test_environment
     
-    test_info "<¯ PRECEDENCE SYSTEM INTEGRATION TESTS"
+    test_info "<ï¿½ PRECEDENCE SYSTEM INTEGRATION TESTS"
     test_info "Testing the core Microdots principle: LOCAL ALWAYS WINS"
     test_info "Validating graceful degradation in all scenarios"
     echo ""

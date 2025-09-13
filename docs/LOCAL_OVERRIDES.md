@@ -1,5 +1,37 @@
 # Dotlocal System Documentation
 
+---
+**Document**: LOCAL_OVERRIDES.md  
+**Last Updated**: 2025-09-12  
+**Version**: 2.0  
+**Related Documentation**:
+- [Documentation Hub](README.md) - Documentation navigation
+- [Main Architecture Guide](../MICRODOTS.md) - Architecture principles
+- [Technical Implementation](IMPLEMENTATION.md) - System internals and mechanics
+- [Migration History](MIGRATION_TO_DOTLOCAL.md) - Migration to .dotlocal naming
+- [UI Standards](UI_STYLE_GUIDE.md) - Output formatting
+- [Terminology Reference](GLOSSARY.md) - Commands and variable definitions
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [How It Works](#how-it-works)
+- [Quick Start](#quick-start)
+- [Commands](#commands)
+- [Configuration File](#configuration-file)
+- [Examples](#examples)
+- [Best Practices](#best-practices)
+- [Security Considerations](#security-considerations)
+- [Troubleshooting](#troubleshooting)
+- [Architecture Details](#architecture-details)
+- [Migration Guide](#migration-guide)
+- [Complete Installation Instructions](#complete-installation-instructions)
+- [Testing Checklist](#testing-checklist)
+- [Core Library Organization](#core-library-organization)
+- [Quick Reference](#quick-reference)
+
 ## Overview
 
 This dotfiles repository implements a **dotlocal system** that elegantly separates public, shareable configurations from private, personal settings. The system ensures that local configurations **always win** over public ones through a sophisticated precedence mechanism.
@@ -100,7 +132,7 @@ The `dotfiles.conf` file (optional) allows explicit configuration:
 
 ```bash
 # Path to your local/private configuration folder
-LOCAL_PATH='/Users/username/.dotlocal'
+DOTLOCAL='$HOME/.dotlocal'
 
 # Backup settings (optional)
 BACKUP_PATH='/Volumes/Backup/Dotfiles'
@@ -484,3 +516,128 @@ The dotlocal system provides a clean, elegant solution to the classic dotfiles p
 Whether you use cloud storage, local directories, or external drives, your private configurations remain private while your public templates help others. The system grows with you from simple configs to complex multi-machine setups.
 
 **Remember:** Local always wins. Your configs, your control.
+
+## Quick Reference
+
+### Essential Commands
+```bash
+# Check system status
+dots status                    # Basic status
+dots status --verbose         # Detailed information  
+dots status --symlinks        # Show all managed symlinks
+
+# Apply configuration changes
+dots relink                    # Apply local overrides
+dots relink --dry-run          # Preview changes
+dots relink --force            # Force overwrite conflicts
+dots relink --clean            # Clean broken symlinks first
+
+# Initial setup
+dots bootstrap                 # First-time setup
+dots bootstrap --install      # Setup + full installation
+```
+
+### Directory Structure
+```bash
+~/.dotfiles/                   # Public configurations (git repo)
+├── topic/config.symlink      # Public template
+└── .dotlocal -> ~/.dotlocal  # Symlink to private configs
+
+~/.dotlocal/                   # Private configurations (local only)
+├── topic/config.symlink      # Private override (WINS!)
+├── ssh.symlink/              # SSH keys and config
+└── localrc.symlink           # Secrets and API keys
+```
+
+### Precedence Order (Local Always Wins)
+1. **dotfiles.conf** - Explicit configuration (highest priority)
+2. **~/.dotfiles/.dotlocal** - Symlink to your local folder
+3. **~/.dotfiles/.dotlocal** - Regular directory
+4. **~/.dotlocal** - Hidden directory in home (default)
+
+### Configuration Variables
+```bash
+# In dotfiles.conf
+DOTLOCAL='/path/to/private/config'    # Where your private configs live
+BACKUP_PATH='/path/to/backup'         # Backup location
+AUTO_SNAPSHOT='true'                  # Enable automatic snapshots
+```
+
+### Common Patterns
+```bash
+# Override public shell config
+echo "export EDITOR=nvim" > ~/.dotlocal/shell/zshrc.symlink
+dots relink
+
+# Add private SSH keys
+mkdir -p ~/.dotlocal/ssh.symlink
+cp ~/Downloads/id_rsa ~/.dotlocal/ssh.symlink/
+dots relink
+
+# Store secrets safely
+echo "export API_KEY='secret'" > ~/.dotlocal/localrc.symlink
+dots relink
+```
+
+### Troubleshooting Quick Fixes
+```bash
+# Local configs not applying?
+dots status                    # Check configuration
+dots relink --force           # Force application
+
+# Broken symlinks?
+dots relink --clean           # Clean and recreate
+
+# Missing local directory?
+mkdir -p ~/.dotlocal          # Create default location
+dots relink                   # Apply changes
+
+# Permission issues?
+chmod -R 755 ~/.dotlocal      # Fix permissions
+dots relink                   # Retry
+```
+
+### Cloud Storage Setup
+```bash
+# iCloud Drive
+ln -s ~/Library/Mobile\ Documents/com~apple~CloudDocs/Dotlocal ~/.dotfiles/.dotlocal
+
+# Dropbox  
+ln -s ~/Dropbox/Dotlocal ~/.dotfiles/.dotlocal
+
+# Custom location
+echo "DOTLOCAL='/path/to/cloud/storage'" >> ~/.dotfiles/dotfiles.conf
+```
+
+### Testing Commands
+```bash
+# Validate system health
+dots status --verbose
+
+# Test configuration loading
+zsh -n ~/.zshrc
+
+# Check for conflicts
+dots relink --dry-run
+
+# Verify precedence
+dots status | grep -A 5 "Local Configuration"
+```
+
+### File Types Reference
+- **`.symlink`** files → Symlinked to `$HOME` (extension removed)
+- **`path.zsh`** → PATH setup (loaded first)
+- **`*.zsh`** → General configuration (loaded second)  
+- **`completion.zsh`** → Tab completions (loaded last)
+- **`install.sh`** → Installation scripts (run during setup)
+
+### Key Principles
+1. **Local Always Wins** - Private configs completely override public ones
+2. **Zero Configuration** - Works out of the box with sensible defaults
+3. **Cloud Sync Compatible** - Store private configs anywhere
+4. **Defensive Programming** - Graceful handling of missing dependencies
+5. **Progressive Enhancement** - Start simple, add complexity as needed
+
+---
+
+*For complete documentation, see the full sections above or visit the [Documentation Hub](README.md)*

@@ -30,9 +30,9 @@ test_topic_isolation() {
     
     local topic_name="$(basename "$topic_dir")"
     
-    # Skip system directories
+    # Skip system directories and documentation
     case "$topic_name" in
-      ".|..|tests|docs|core|.git|.local") continue ;;
+      .|..|tests|docs|core|.git|.local|.dotlocal|.claude) continue ;;
     esac
     
     test_log "Testing independence of topic: $topic_name"
@@ -46,14 +46,16 @@ test_topic_isolation() {
     cp -r "$topic_dir" "$isolated_dir/.dotfiles/"
     cp -r "$test_home/.dotfiles/zsh" "$isolated_dir/.dotfiles/" 2>/dev/null || true
     
-    # Test that topic doesn't reference other topics
-    if find "$topic_dir" -name "*.zsh" -o -name "*.sh" | xargs grep -l "\.\./.*/" 2>/dev/null; then
+    # Test that topic doesn't reference other topics (excluding documentation)
+    local files_to_check=$(find "$topic_dir" \( -name "*.zsh" -o -name "*.sh" \) -not -name "*.md" 2>/dev/null)
+    if [[ -n "$files_to_check" ]] && echo "$files_to_check" | xargs grep -l "\.\./.*/" 2>/dev/null; then
       test_fail "Topic $topic_name contains relative paths to other topics"
       return 1
     fi
     
     # Test that topic doesn't hardcode paths
-    if find "$topic_dir" -name "*.zsh" -o -name "*.sh" | xargs grep -E "(^|[^$])/Users/[^/]+/" 2>/dev/null; then
+    local code_files=$(find "$topic_dir" \( -name "*.zsh" -o -name "*.sh" \) 2>/dev/null)
+    if [[ -n "$code_files" ]] && echo "$code_files" | xargs grep -E "(^|[^$])/Users/[^/]+/" 2>/dev/null; then
       test_fail "Topic $topic_name contains hardcoded user paths"
       return 1
     fi
@@ -62,8 +64,8 @@ test_topic_isolation() {
     for config_file in "$topic_dir"/*.zsh; do
       [[ -f "$config_file" ]] || continue
       
-      # Basic zsh syntax check (simplified)
-      if ! bash -n "$config_file" 2>/dev/null; then
+      # Basic zsh syntax check using zsh
+      if ! zsh -n "$config_file" 2>/dev/null; then
         test_fail "Topic $topic_name has syntax error in $(basename "$config_file")"
         return 1
       fi
@@ -88,7 +90,7 @@ test_no_variable_conflicts() {
     
     local topic_name="$(basename "$topic_dir")"
     case "$topic_name" in
-      ".|..|tests|docs|core|.git|.local") continue ;;
+      .|..|tests|docs|core|.git|.local|.dotlocal|.claude) continue ;;
     esac
     
     # Find variable assignments (export VAR=value or VAR=value)
@@ -134,7 +136,7 @@ test_defensive_programming() {
     
     local topic_name="$(basename "$topic_dir")"
     case "$topic_name" in
-      ".|..|tests|docs|core|.git|.local") continue ;;
+      .|..|tests|docs|core|.git|.local|.dotlocal|.claude) continue ;;
     esac
     
     # Check that topics test for command existence before using
@@ -157,8 +159,8 @@ test_defensive_programming() {
     
     # If topic uses commands but has no checks, that's a problem
     if [[ -f "$TEST_TEMP_DIR/defensive_check_$topic_name" ]]; then
-      local commands_count=$(grep -c "has_commands" "$TEST_TEMP_DIR/defensive_check_$topic_name" 2>/dev/null || echo "0")
-      local checks_count=$(grep -c "has_checks" "$TEST_TEMP_DIR/defensive_check_$topic_name" 2>/dev/null || echo "0")
+      local commands_count=$(grep -c "has_commands" "$TEST_TEMP_DIR/defensive_check_$topic_name" 2>/dev/null | head -1 || echo "0")
+      local checks_count=$(grep -c "has_checks" "$TEST_TEMP_DIR/defensive_check_$topic_name" 2>/dev/null | head -1 || echo "0")
       
       if [[ "$commands_count" -gt 0 && "$checks_count" -eq 0 ]]; then
         test_fail "Topic $topic_name uses commands without defensive checks"
@@ -172,6 +174,33 @@ test_defensive_programming() {
   test_success "All topics implement proper defensive programming"
 }
 
+# Test for real cross-topic dependencies (not documentation examples)
+test_no_cross_topic_dependencies() {
+  test_info "Testing for cross-topic dependencies in actual code"
+  
+  for topic_dir in "$DOTFILES_ROOT"/*; do
+    [[ -d "$topic_dir" ]] || continue
+    
+    local topic_name="$(basename "$topic_dir")"
+    case "$topic_name" in
+      ".|..|tests|docs|core|.git|.local|.claude") continue ;;
+    esac
+    
+    # Check actual code files (not documentation)
+    find "$topic_dir" \( -name "*.zsh" -o -name "*.sh" \) | while read -r file; do
+      # Check for sourcing other topics (except core which is allowed)
+      if grep -E "source.*DOTFILES.*/((?!core/)[^/]+)/" "$file" 2>/dev/null | grep -v "# BAD\|# EXAMPLE\|# DON'T" 2>/dev/null; then
+        test_fail "Topic $topic_name has cross-topic dependency in $(basename "$file")"
+        return 1
+      fi
+    done
+    
+    test_success "Topic $topic_name has no cross-topic dependencies"
+  done
+  
+  test_success "No cross-topic dependencies found in actual code"
+}
+
 # Test topic self-containment
 test_topic_self_containment() {
   test_info "Testing that topics are self-contained"
@@ -181,12 +210,17 @@ test_topic_self_containment() {
     
     local topic_name="$(basename "$topic_dir")"
     case "$topic_name" in
-      ".|..|tests|docs|core|.git|.local") continue ;;
+      ".|..|tests|docs|core|.git|.local|.claude") continue ;;
     esac
     
-    # Check that topic doesn't source files from other topics
-    find "$topic_dir" -name "*.zsh" -o -name "*.sh" | while read -r file; do
-      if grep -E "source.*\.\./[^/]" "$file" 2>/dev/null; then
+    # Check that topic doesn't source files from other topics (excluding documentation)
+    find "$topic_dir" \( -name "*.zsh" -o -name "*.sh" \) -not -name "*.md" | while read -r file; do
+      # Skip if this is a markdown file (documentation)
+      [[ "$file" == *.md ]] && continue
+      
+      # Exclude lines that are clearly examples or bad practices
+      # Also exclude test framework sourcing (tests need to source the framework)
+      if grep -E "source.*\.\./[^/]" "$file" 2>/dev/null | grep -v "# BAD\|# EXAMPLE\|# DON'T\|# NEVER\|test_framework\.sh" 2>/dev/null; then
         test_fail "Topic $topic_name sources files from other topics in $(basename "$file")"
         return 1
       fi
@@ -283,6 +317,7 @@ run_architecture_tests() {
   test_topic_isolation
   test_no_variable_conflicts
   test_defensive_programming
+  test_no_cross_topic_dependencies
   test_topic_self_containment
   test_hot_deployment
   

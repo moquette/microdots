@@ -1,5 +1,33 @@
 # Dotfiles UI Style Guide
 
+---
+**Document**: UI_STYLE_GUIDE.md  
+**Last Updated**: 2025-09-12  
+**Version**: 2.0  
+**Related Documentation**:
+- [Documentation Hub](README.md) - Documentation navigation
+- [Technical Implementation](IMPLEMENTATION.md) - System internals and UI integration
+- [Dotlocal System](LOCAL_OVERRIDES.md) - Private configuration UI patterns
+- [System Compliance](COMPLIANCE.md) - UI consistency validation
+- [Terminology Reference](GLOSSARY.md) - UI function definitions
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Core Principles](#core-principles)
+- [Using the UI Library](#using-the-ui-library)
+- [Standard Output Patterns](#standard-output-patterns)
+- [Command Examples](#command-examples)
+- [Project-Specific UI Patterns](#project-specific-ui-patterns)
+- [Color Usage Guidelines](#color-usage-guidelines)
+- [Terminal Compatibility](#terminal-compatibility)
+- [Best Practices](#best-practices)
+- [Environment Variables](#environment-variables)
+- [Testing Output](#testing-output)
+- [Common Pitfalls to Avoid](#common-pitfalls-to-avoid)
+- [Integration Checklist](#integration-checklist)
+
 ## Overview
 
 This guide defines the unified output style for all dotfiles commands to ensure a consistent, professional user experience.
@@ -170,8 +198,8 @@ summary "Bootstrap" 5 0 0
 header "📊 Dotfiles Status"
 
 subheader "System Configuration"
-key_value "Dotfiles" "/Users/name/.dotfiles"
-key_value "Local" "/Users/name/.dotlocal"
+key_value "Dotfiles" "$HOME/.dotfiles"
+key_value "Local" "$HOME/.dotlocal"
 key_value "Shell" "zsh"
 
 subheader "Component Status"
@@ -205,6 +233,161 @@ status "Dependencies" "warning"
 
 summary "Maintenance" 2 1 0
 ```
+
+## Project-Specific UI Patterns
+
+The Microdots project has developed several specialized UI patterns that extend the core library for domain-specific needs.
+
+### Dotlocal Status Display
+
+The dotlocal system uses specific patterns for showing configuration precedence and override status:
+
+```bash
+# Dotlocal system status pattern (from dots status)
+subheader "Local Configuration"
+key_value "Type" "Symlink"
+key_value "Path" "$HOME/.dotlocal"
+key_value "Status" "Active (16 topics)"
+
+# Show precedence resolution
+subheader "Precedence Resolution"
+list_item "✓ Checked dotfiles.conf - not found"
+list_item "✓ Checked .dotlocal symlink - found: ~/.dotlocal"
+list_item "● Using: ~/.dotlocal (16 topics)"
+```
+
+### Topic Independence Validation
+
+For compliance checking and topic validation:
+
+```bash
+# Topic compliance pattern
+header "📊 System Compliance Check"
+
+subheader "Topic Independence"
+for topic in git homebrew zsh; do
+  status "$topic" "independent"  # Green checkmark
+done
+
+subheader "Loading Order Validation"  
+status "Stage 1 (path.zsh)" "valid"
+status "Stage 2 (config)" "valid"
+status "Stage 3 (compinit)" "initialized"
+status "Stage 4 (completion)" "loaded"
+```
+
+### MCP Server Status
+
+For MCP server management and status:
+
+```bash
+# MCP server status pattern
+header "🔌 MCP Server Status"
+
+subheader "Configured Servers"
+table_header "Server" "Status" "Tools" "Version"
+table_row "filesystem" "active" "12" "1.0.0"
+table_row "context7" "active" "4" "2.1.0"
+table_row "memory" "failed" "8" "1.5.2"
+
+# Server-specific actions
+subheader "Actions Required"
+warning "Memory server requires restart"
+info "Run: claude mcp restart memory"
+```
+
+### Installation Progress Tracking
+
+For complex installation workflows:
+
+```bash
+# Multi-topic installation pattern
+header "🚀 Topic Installation"
+
+# Progress tracking with counts
+subheader "Installation Progress (3/8 complete)"
+status "git" "installed"
+status "homebrew" "installed"  
+status "zsh" "installed"
+progress "Installing node"
+list_item "docker - pending"
+list_item "claude - pending"
+list_item "backup - pending"
+list_item "ssh - pending"
+```
+
+### Error Recovery and Rollback
+
+For error handling and recovery operations:
+
+```bash
+# Error recovery pattern
+header "🔄 System Recovery"
+
+subheader "Detected Issues"
+error "Broken symlink: ~/.zshrc"
+warning "Missing dependency: node"
+info "Backup available: ~/.zshrc.backup.1631234567"
+
+subheader "Recovery Options"
+list_item "1. Restore from backup"
+list_item "2. Recreate from template"
+list_item "3. Skip and continue"
+
+# Recovery action
+progress "Restoring ~/.zshrc from backup"
+success "Recovery completed successfully"
+```
+
+### Diagnostic Output
+
+For debugging and troubleshooting:
+
+```bash
+# Diagnostic information pattern
+header "🔍 System Diagnostics"
+
+subheader "Environment"
+key_value "DOTFILES_ROOT" "$HOME/.dotfiles"
+key_value "DOTLOCAL" "$HOME/.dotlocal"  
+key_value "Shell" "zsh 5.8.1"
+key_value "Platform" "macOS 14.0"
+
+subheader "Loading Performance"
+key_value "Startup Time" "0.234s"
+key_value "Topics Loaded" "8"
+key_value "Symlinks Active" "24"
+
+subheader "Health Status"
+status "Configuration" "healthy"
+status "Symlinks" "healthy"
+status "Dependencies" "warning"
+```
+
+### Testing and Validation Output
+
+For test execution and validation:
+
+```bash
+# Test execution pattern  
+header "🧪 System Tests"
+
+subheader "Portability Tests"
+status "Hardcoded paths" "pass"
+status "User references" "pass"
+status "Cross-platform" "warning"
+
+subheader "Integration Tests"
+progress "Running 85 tests"
+# Real-time test results
+list_item "✓ test_topic_independence (0.12s)"
+list_item "✓ test_loading_order (0.08s)"
+list_item "⚠ test_completion_timing (0.15s)"
+
+summary "Testing" 83 2 0
+```
+
+These patterns ensure consistent visual presentation across all Microdots operations while providing clear, actionable information to users. Each pattern follows the core UI principles while addressing the specific needs of dotfiles management.
 
 ## Color Usage Guidelines
 

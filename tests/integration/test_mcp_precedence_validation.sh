@@ -69,7 +69,7 @@ create_local_mcp_config() {
   "mcpServers": {
     "local-filesystem": {
       "command": "npx",
-      "args": ["-y", "@anthropic/filesystem-mcp-server", "/Users/me/Code"],
+      "args": ["-y", "@anthropic/filesystem-mcp-server", "\$HOME/Code"],
       "type": "stdio"
     },
     "local-memory": {
