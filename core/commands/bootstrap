@@ -151,7 +151,7 @@ install_dotfiles() {
     eval "$(grep '^DOTLOCAL=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
     
     # Expand the path to handle tilde and variables
-    if [[ -n "$DOTLOCAL" ]]; then
+    if [[ -n "${DOTLOCAL:-}" ]]; then
       local_dir=$(expand_path "$DOTLOCAL")
     fi
   fi
@@ -167,9 +167,9 @@ setup_dotlocal_symlink() {
     # Source the config file to get DOTLOCAL
     source "$DOTFILES_ROOT/dotfiles.conf"
     
-    if [ -n "$DOTLOCAL" ]; then
+    if [ -n "${DOTLOCAL:-}" ]; then
       # Expand tilde in DOTLOCAL path
-      DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
+      DOTLOCAL_EXPANDED=$(expand_path "${DOTLOCAL:-}")
       # Create .dotlocal as the primary symlink
       LOCAL_SYMLINK_PATH="$DOTFILES_ROOT/.dotlocal"
       
@@ -178,13 +178,13 @@ setup_dotlocal_symlink() {
         # Create symlink if it doesn't exist
         if [ ! -e "$LOCAL_SYMLINK_PATH" ]; then
           ln -sfn "$DOTLOCAL_EXPANDED" "$LOCAL_SYMLINK_PATH"
-          success "Created local symlink: $LOCAL_SYMLINK_PATH → $DOTLOCAL"
+          success "Created local symlink: $LOCAL_SYMLINK_PATH → ${DOTLOCAL:-}"
         elif [ -L "$LOCAL_SYMLINK_PATH" ]; then
           # Update existing symlink if it points to wrong location
           current_target=$(readlink "$LOCAL_SYMLINK_PATH")
           if [ "$current_target" != "$DOTLOCAL_EXPANDED" ]; then
             ln -sfn "$DOTLOCAL_EXPANDED" "$LOCAL_SYMLINK_PATH"
-            success "Updated local symlink: $LOCAL_SYMLINK_PATH → $DOTLOCAL"
+            success "Updated local symlink: $LOCAL_SYMLINK_PATH → ${DOTLOCAL:-}"
           else
             success "Local symlink already configured correctly"
           fi
@@ -210,8 +210,8 @@ setup_dotlocal_symlink() {
           warning "$CORE_SYMLINK_PATH exists but is not a symlink"
         fi
       else
-        warning "DOTLOCAL is set to '$DOTLOCAL' but directory does not exist"
-        info "Create it with: mkdir -p $DOTLOCAL"
+        warning "DOTLOCAL is set to '${DOTLOCAL:-}' but directory does not exist"
+        info "Create it with: mkdir -p ${DOTLOCAL:-}"
       fi
     fi
   fi
