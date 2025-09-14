@@ -314,11 +314,19 @@ main() {
   fi
 
   blank
-  summary "Bootstrap" 1 0 0
+  separator
   blank
-  subheader "Next Steps"
-  list_item "Run 'dots install' to install all topic configurations"
-  list_item "Reload your shell or run 'source ~/.zshrc'"
+  success "🎉 Bootstrap complete!"
+  blank
+
+  # Only show next steps if not running with --install
+  if [[ "$run_install" != "true" ]]; then
+    subheader "Next Steps"
+    list_item "Run 'dots install' to install all topic configurations"
+    list_item "Run 'source ~/.zshrc' to reload your shell"
+  else
+    info "Run 'source ~/.zshrc' to reload your shell and start using your new configuration!"
+  fi
 }
 
 # Run main function

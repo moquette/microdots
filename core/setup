@@ -188,26 +188,14 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 # Run bootstrap with install flag - show all output
-if ~/.dotfiles/core/dots bootstrap --install; then
-  echo -e "\n${GREEN}✅ Bootstrap completed successfully!${NC}"
-else
+if ! ~/.dotfiles/core/dots bootstrap --install; then
   echo -e "\n${YELLOW}⚠ Bootstrap completed with warnings${NC}"
   echo -e "${YELLOW}  Some components may not have installed properly${NC}"
   echo -e "${YELLOW}  You can run 'dots install' later to retry${NC}"
 fi
 
-# Kill the sudo keep-alive background process
-kill $SUDO_PID 2>/dev/null
-
-# Shell reload section - fixed for zsh compatibility
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${YELLOW}🔄 Shell configuration complete${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}✅ Please restart your terminal or run: source ~/.zshrc${NC}\n"
-
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}🎉 Dotfiles setup complete!${NC}"
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+# Kill the sudo keep-alive background process quietly
+{ kill $SUDO_PID; } 2>/dev/null
 
 # Log footer
 echo ""
