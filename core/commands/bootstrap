@@ -16,10 +16,14 @@ source "$CORE_DIR/lib/common.sh"
 
 # Parse command line flags
 run_install=false
+force_relink=false
 while test $# -gt 0; do
   case "$1" in
     --install)
       run_install=true
+      ;;
+    --force-relink)
+      force_relink=true
       ;;
     *)
       ;;
@@ -174,12 +178,21 @@ install_dotfiles() {
 setup_dotlocal_symlink() {
   subheader "Dotlocal Auto-Discovery"
 
-  # Source the path resolution library
+  # Source the path resolution library and symlink library
   source "$CORE_DIR/lib/paths.sh"
+  source "$CORE_DIR/lib/symlink.sh"
 
   # Use the comprehensive path resolution with verbose output
   local discovered_path=$(resolve_dotlocal_path "$DOTFILES_ROOT" "true" "true")
   local discovery_method=$(get_dotlocal_discovery_method)
+  local force="${force_relink:-false}"
+
+  # If resolve_dotlocal_path returns empty (due to infrastructure setup failure),
+  # try direct discovery as fallback
+  if [[ -z "$discovered_path" ]]; then
+    discovered_path=$(discover_dotlocal_path "$DOTFILES_ROOT" "false")
+    discovery_method=$(get_dotlocal_discovery_method)
+  fi
 
   # Report discovery results
   success "Dotlocal discovery complete"
@@ -190,30 +203,45 @@ setup_dotlocal_symlink() {
   if [[ -n "$discovered_path" ]]; then
     local dotlocal_symlink="$DOTFILES_ROOT/.dotlocal"
 
-    # Remove existing symlink if it points to wrong location
-    if [[ -L "$dotlocal_symlink" ]]; then
-      local current_target=$(readlink "$dotlocal_symlink")
-      if [[ "$current_target" != "$discovered_path" ]]; then
-        rm -f "$dotlocal_symlink"
-        info "Removed incorrect .dotlocal symlink"
-      fi
-    elif [[ -e "$dotlocal_symlink" ]]; then
-      warning ".dotlocal exists but is not a symlink - skipping"
-    fi
+    # Always verify and ensure correct symlink, regardless of existence
+    # Bootstrap doesn't have dry_run mode, so we always execute
+    if false; then
+      info "Would create/verify .dotlocal symlink: .dotlocal → $discovered_path"
+    else
+      local needs_update=false
+      local current_target=""
 
-    # Create symlink if it doesn't exist
-    if [[ ! -e "$dotlocal_symlink" ]]; then
-      if [[ "$dry_run" == "true" ]]; then
-        info "Would create .dotlocal symlink: .dotlocal → $discovered_path"
-      else
-        # Don't fail bootstrap if symlink creation fails (e.g., due to spaces in path)
+      if [[ -L "$dotlocal_symlink" ]]; then
+        current_target=$(readlink "$dotlocal_symlink")
+        if [[ "$current_target" != "$discovered_path" ]]; then
+          needs_update=true
+          info "Updating .dotlocal symlink: $current_target → $discovered_path"
+        elif [[ "$force" == "true" ]]; then
+          needs_update=true
+          info "Force updating .dotlocal symlink (--force-relink flag)"
+        fi
+      elif [[ ! -e "$dotlocal_symlink" ]]; then
+        needs_update=true
+        info "Creating .dotlocal symlink: .dotlocal → $discovered_path"
+      elif [[ -e "$dotlocal_symlink" ]]; then
+        warning ".dotlocal exists but is not a symlink - skipping"
+      fi
+
+      if [[ "$needs_update" == "true" ]]; then
+        # Force update the symlink (remove old one if it exists)
+        if [[ -L "$dotlocal_symlink" ]] || [[ -e "$dotlocal_symlink" ]]; then
+          rm -f "$dotlocal_symlink"
+        fi
+
         if ! create_infrastructure_symlink "$discovered_path" "$dotlocal_symlink" ".dotlocal" "false" "true"; then
           warning "Could not create .dotlocal symlink (path may contain special characters)"
           warning "You can manually create it later with: ln -s '$discovered_path' '$dotlocal_symlink'"
+        else
+          success ".dotlocal symlink updated successfully"
         fi
+      else
+        info ".dotlocal symlink already correct: → $discovered_path"
       fi
-    else
-      info ".dotlocal symlink already correct"
     fi
 
     # Also create the core symlink in dotlocal for library access (don't fail on error)

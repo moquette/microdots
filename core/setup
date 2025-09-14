@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 # Setup log file
-LOG_FILE=~/Desktop/install.log
+LOG_FILE=~/Desktop/dots-bootstrap.log
 exec > >(tee -a "$LOG_FILE")
 exec 2>&1
 
 # Log header
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Dotfiles Installation Log"
+echo "Dotfiles Bootstrap Log"
 echo "Date: $(date)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

@@ -142,12 +142,60 @@ discovered_path=$(discover_dotlocal_path "$DOTFILES_ROOT" "false" "$verbose")
 discovery_method=$(get_dotlocal_discovery_method)
 
 if [[ -n "$discovered_path" ]]; then
-    if [[ "$dry_run" == "true" ]]; then
-        info "[dry-run] Would use dotlocal path: $discovered_path"
-        info "[dry-run] Discovery method: $discovery_method"
+    success "Using dotlocal path: $discovered_path"
+    info "Discovery method: $discovery_method"
+
+    # Verify .dotlocal symlink points to correct location (same logic as bootstrap)
+    dotlocal_symlink="$DOTFILES_ROOT/.dotlocal"
+    needs_update=false
+    current_target=""
+
+    if [[ -L "$dotlocal_symlink" ]]; then
+        current_target=$(readlink "$dotlocal_symlink")
+        if [[ "$current_target" != "$discovered_path" ]]; then
+            needs_update=true
+            if [[ "$dry_run" == "true" ]]; then
+                info "[dry-run] Would update .dotlocal symlink: $current_target → $discovered_path"
+            else
+                info "Updating .dotlocal symlink: $current_target → $discovered_path"
+            fi
+        elif [[ "$force" == "true" ]]; then
+            needs_update=true
+            if [[ "$dry_run" == "true" ]]; then
+                info "[dry-run] Would force update .dotlocal symlink (--force flag)"
+            else
+                info "Force updating .dotlocal symlink (--force flag)"
+            fi
+        fi
+    elif [[ ! -e "$dotlocal_symlink" ]]; then
+        needs_update=true
+        if [[ "$dry_run" == "true" ]]; then
+            info "[dry-run] Would create .dotlocal symlink: .dotlocal → $discovered_path"
+        else
+            info "Creating .dotlocal symlink: .dotlocal → $discovered_path"
+        fi
+    elif [[ -e "$dotlocal_symlink" ]]; then
+        warning ".dotlocal exists but is not a symlink - skipping"
+    fi
+
+    if [[ "$needs_update" == "true" ]]; then
+        if [[ "$dry_run" == "true" ]]; then
+            info "[dry-run] Would update .dotlocal symlink to point to: $discovered_path"
+        else
+            # Force update the symlink (remove old one if it exists)
+            if [[ -L "$dotlocal_symlink" ]] || [[ -e "$dotlocal_symlink" ]]; then
+                rm -f "$dotlocal_symlink"
+            fi
+
+            if ! create_infrastructure_symlink "$discovered_path" "$dotlocal_symlink" ".dotlocal" "false" "false"; then
+                warning "Could not create .dotlocal symlink (path may contain special characters)"
+                warning "You can manually create it later with: ln -s '$discovered_path' '$dotlocal_symlink'"
+            else
+                success ".dotlocal symlink updated successfully"
+            fi
+        fi
     else
-        success "Using dotlocal path: $discovered_path"
-        info "Discovery method: $discovery_method"
+        info ".dotlocal symlink already correct: → $discovered_path"
     fi
 else
     if [[ "$dry_run" == "true" ]]; then

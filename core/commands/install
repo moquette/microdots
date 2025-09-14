@@ -4,6 +4,20 @@
 # This discovers and runs all topic install.sh scripts
 #
 
+# Setup log file (only if not already logging from bootstrap)
+if [[ -z "${LOG_FILE:-}" ]]; then
+  LOG_FILE=~/Desktop/dots-install.log
+  exec > >(tee -a "$LOG_FILE")
+  exec 2>&1
+
+  # Log header
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "Dotfiles Install Log"
+  echo "Date: $(date)"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+fi
+
 set -e
 
 # Get the dotfiles root directory
@@ -196,4 +210,10 @@ else
     blank
     success "All dotfiles installed successfully!"
   fi
+fi
+
+# Log completion message if we created a log
+if [[ -n "${LOG_FILE:-}" ]] && [[ -f "$LOG_FILE" ]]; then
+  blank
+  info "Installation log saved to: $LOG_FILE"
 fi
