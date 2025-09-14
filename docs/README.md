@@ -1,163 +1,136 @@
-# Microdots Documentation Hub
+# 📚 Microdots Documentation Hub
 
-Welcome to the comprehensive documentation for the Microdots dotfiles system. This guide will help you navigate all available documentation and find exactly what you need.
+Welcome to the comprehensive documentation for the Microdots dotfiles system. This guide will help you navigate all available documentation organized by category.
 
-## 📖 Documentation Overview
+## 🗂️ Documentation Structure
 
-The Microdots documentation is organized into two tiers for clarity and ease of navigation:
+```
+docs/
+├── README.md                    # This file - Documentation index
+├── architecture/                # System design & principles
+│   ├── MICRODOTS.md            # Core architecture philosophy
+│   ├── IMPLEMENTATION.md       # Technical implementation details
+│   ├── INFRASTRUCTURE.md       # Infrastructure components
+│   └── COMPLIANCE.md           # Architecture compliance report
+├── guides/                      # How-to guides and tutorials
+│   ├── LOCAL_OVERRIDES.md      # Dotlocal system guide
+│   ├── UI_STYLE_GUIDE.md       # UI/output standards
+│   ├── MCP_JIT_INSTALLATION.md # MCP installation guide
+│   └── MIGRATION_TO_DOTLOCAL.md # Migration procedures
+└── reference/                   # Quick reference materials
+    └── GLOSSARY.md             # Terms, commands, variables
+```
 
-### **Root Level Documentation (Start Here)**
-Essential reading for understanding and using the system:
-
-- **[README.md](../README.md)** - Project overview and quick start guide
-- **[MICRODOTS.md](../MICRODOTS.md)** - Complete architecture guide and philosophy  
-- **[CLAUDE.md](../CLAUDE.md)** - AI agent configuration and instructions
-
-### **Reference Documentation (Technical Details)**
-In-depth technical information for advanced usage and development:
-
-- **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Technical internals and system mechanics
-- **[LOCAL_OVERRIDES.md](LOCAL_OVERRIDES.md)** - Dotlocal system for private configurations
-- **[UI_STYLE_GUIDE.md](UI_STYLE_GUIDE.md)** - Unified output formatting standards
-- **[COMPLIANCE.md](COMPLIANCE.md)** - System compliance assessment and metrics
-- **[MIGRATION_TO_DOTLOCAL.md](MIGRATION_TO_DOTLOCAL.md)** - Migration history and procedures
-- **[GLOSSARY.md](GLOSSARY.md)** - Complete terminology and reference guide
-- **[MCP_JIT_INSTALLATION.md](MCP_JIT_INSTALLATION.md)** - MCP servers just-in-time installation explanation
-
-## 🚀 Quick Start Navigation
+## 🚀 Quick Start by Role
 
 ### **New Users**
-1. Start with [README.md](../README.md) for project overview
-2. Read [MICRODOTS.md](../MICRODOTS.md) to understand the architecture
-3. Follow [LOCAL_OVERRIDES.md](LOCAL_OVERRIDES.md) to set up private configs
-4. Reference [GLOSSARY.md](GLOSSARY.md) for terminology
+1. Start with [../README.md](../README.md) for project overview
+2. Read [architecture/MICRODOTS.md](architecture/MICRODOTS.md) to understand the system
+3. Follow [guides/LOCAL_OVERRIDES.md](guides/LOCAL_OVERRIDES.md) to set up private configs
+4. Reference [reference/GLOSSARY.md](reference/GLOSSARY.md) for terminology
 
 ### **Developers**
-1. Review [IMPLEMENTATION.md](IMPLEMENTATION.md) for technical details
-2. Follow [UI_STYLE_GUIDE.md](UI_STYLE_GUIDE.md) for consistent output
-3. Check [COMPLIANCE.md](COMPLIANCE.md) for current system status
-4. Use [GLOSSARY.md](GLOSSARY.md) for command and variable reference
+1. Review [architecture/IMPLEMENTATION.md](architecture/IMPLEMENTATION.md) for technical details
+2. Follow [guides/UI_STYLE_GUIDE.md](guides/UI_STYLE_GUIDE.md) for consistent output
+3. Check [architecture/COMPLIANCE.md](architecture/COMPLIANCE.md) for system status
+4. Use [reference/GLOSSARY.md](reference/GLOSSARY.md) for command reference
+
+### **System Administrators**
+1. Read [architecture/INFRASTRUCTURE.md](architecture/INFRASTRUCTURE.md) for system components
+2. Follow [guides/MCP_JIT_INSTALLATION.md](guides/MCP_JIT_INSTALLATION.md) for MCP setup
+3. Review [guides/MIGRATION_TO_DOTLOCAL.md](guides/MIGRATION_TO_DOTLOCAL.md) for migrations
 
 ### **AI Agents**
-1. Must read [CLAUDE.md](../CLAUDE.md) for operating instructions
-2. Reference [MICRODOTS.md](../MICRODOTS.md) for architecture principles
-3. Follow [UI_STYLE_GUIDE.md](UI_STYLE_GUIDE.md) for output consistency
-4. Use [IMPLEMENTATION.md](IMPLEMENTATION.md) for technical accuracy
+1. Must read [../CLAUDE.md](../CLAUDE.md) for operating instructions
+2. Reference [architecture/MICRODOTS.md](architecture/MICRODOTS.md) for principles
+3. Follow [guides/UI_STYLE_GUIDE.md](guides/UI_STYLE_GUIDE.md) for output
+4. Use [architecture/IMPLEMENTATION.md](architecture/IMPLEMENTATION.md) for internals
 
-## 📊 Document Status Matrix
+## 📖 Documentation Categories
 
-| Document | Status | Last Updated | Completeness | Quality |
-|----------|--------|--------------|--------------|---------|
-| [IMPLEMENTATION.md](IMPLEMENTATION.md) | ✅ Active | 2025-09-12 | 95% | A+ |
-| [LOCAL_OVERRIDES.md](LOCAL_OVERRIDES.md) | ✅ Active | 2025-09-12 | 98% | A+ |
-| [UI_STYLE_GUIDE.md](UI_STYLE_GUIDE.md) | ✅ Active | 2025-09-12 | 96% | A+ |
-| [COMPLIANCE.md](COMPLIANCE.md) | ✅ Active | 2025-09-12 | 94% | A+ |
-| [MIGRATION_TO_DOTLOCAL.md](MIGRATION_TO_DOTLOCAL.md) | ✅ Complete | 2025-09-12 | 92% | A |
-| [GLOSSARY.md](GLOSSARY.md) | ✅ Active | 2025-09-12 | 100% | A+ |
+### 🏗️ Architecture Documentation
+Core system design, principles, and technical implementation:
 
-## 🎯 Documentation Principles
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [MICRODOTS.md](architecture/MICRODOTS.md) | Complete architecture guide and philosophy | All users |
+| [IMPLEMENTATION.md](architecture/IMPLEMENTATION.md) | Technical internals and mechanics | Developers |
+| [INFRASTRUCTURE.md](architecture/INFRASTRUCTURE.md) | Infrastructure components and management | Admins |
+| [COMPLIANCE.md](architecture/COMPLIANCE.md) | System compliance assessment | Maintainers |
 
-This documentation follows these core principles:
+### 📘 Guides & Tutorials
+Step-by-step guides for specific tasks and features:
 
-1. **Accuracy First** - All technical details are verified and tested
-2. **Practical Focus** - Every concept includes working examples
-3. **Progressive Enhancement** - Start simple, add complexity as needed
-4. **Self-Contained** - Each document can be read independently
-5. **Cross-Referenced** - Related information is clearly linked
-6. **Maintained** - Regular updates ensure current accuracy
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [LOCAL_OVERRIDES.md](guides/LOCAL_OVERRIDES.md) | Setting up private configurations | All users |
+| [UI_STYLE_GUIDE.md](guides/UI_STYLE_GUIDE.md) | Output formatting standards | Developers |
+| [MCP_JIT_INSTALLATION.md](guides/MCP_JIT_INSTALLATION.md) | MCP server setup and management | Power users |
+| [MIGRATION_TO_DOTLOCAL.md](guides/MIGRATION_TO_DOTLOCAL.md) | Migration procedures and history | Maintainers |
 
-## 🔧 Common Tasks Quick Reference
+### 📋 Reference Materials
+Quick lookup for commands, terms, and specifications:
 
-### **System Setup**
-```bash
-# Initial setup
-dots bootstrap --install
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [GLOSSARY.md](reference/GLOSSARY.md) | Complete terminology and command reference | All users |
 
-# Configure private settings
-mkdir -p ~/.dotlocal
-dots relink
-```
+## 📊 Document Status
 
-### **Daily Operations**
-```bash
-# Check system status
-dots status
+| Category | Documents | Status | Completeness |
+|----------|-----------|--------|--------------|
+| **Architecture** | 4 docs | ✅ Complete | 100% |
+| **Guides** | 4 docs | ✅ Complete | 100% |
+| **Reference** | 1 doc | ✅ Complete | 100% |
 
-# Update everything
-dots update
+## 🔍 Finding Information
 
-# Maintenance
-dots maintenance
-```
+### By Topic:
+- **System Design** → [architecture/](architecture/)
+- **How-To Guides** → [guides/](guides/)
+- **Commands & Terms** → [reference/GLOSSARY.md](reference/GLOSSARY.md)
+- **Private Configs** → [guides/LOCAL_OVERRIDES.md](guides/LOCAL_OVERRIDES.md)
+- **UI Standards** → [guides/UI_STYLE_GUIDE.md](guides/UI_STYLE_GUIDE.md)
 
-### **Troubleshooting**
-```bash
-# Debug loading issues
-ZSH=~/.dotfiles zsh -x -c 'source ~/.zshrc' 2>&1 | head -20
+### By Task:
+- **Understanding the system** → Start with [architecture/MICRODOTS.md](architecture/MICRODOTS.md)
+- **Setting up dotfiles** → See [../README.md](../README.md)
+- **Configuring private settings** → Follow [guides/LOCAL_OVERRIDES.md](guides/LOCAL_OVERRIDES.md)
+- **Adding new features** → Review [architecture/IMPLEMENTATION.md](architecture/IMPLEMENTATION.md)
+- **Checking compliance** → Read [architecture/COMPLIANCE.md](architecture/COMPLIANCE.md)
 
-# Test system integrity
-tests/run_integration_tests.sh
+## 🔗 Related Documentation
 
-# Check portability
-tests/unit/test_portability.sh
-```
+### Root Level Docs:
+- [../README.md](../README.md) - Project overview and quick start
+- [../MICRODOTS.md](../MICRODOTS.md) - Main architecture guide (symlink)
+- [../CLAUDE.md](../CLAUDE.md) - AI agent configuration
+- [../TASKS.md](../TASKS.md) - Project task tracking
 
-## 📚 Learning Path
+### Topic-Specific Docs:
+Many topics have their own README.md files with specific documentation:
+- `backup/README.md` - Backup system documentation
+- `claude/README.md` - Claude integration details
+- Individual microdot READMEs for topic-specific information
 
-### **Beginner Path**
-1. **Project Overview** - [README.md](../README.md)
-2. **Basic Setup** - [LOCAL_OVERRIDES.md](LOCAL_OVERRIDES.md) Quick Start
-3. **First Configurations** - [UI_STYLE_GUIDE.md](UI_STYLE_GUIDE.md) Basic Patterns
+## 💡 Documentation Principles
 
-### **Intermediate Path**  
-1. **Architecture Understanding** - [MICRODOTS.md](../MICRODOTS.md)
-2. **System Internals** - [IMPLEMENTATION.md](IMPLEMENTATION.md) Core Infrastructure
-3. **Advanced Configuration** - [LOCAL_OVERRIDES.md](LOCAL_OVERRIDES.md) Complete Guide
+1. **Organized by Purpose** - Architecture, guides, and reference clearly separated
+2. **Progressive Disclosure** - Start simple, dive deeper as needed
+3. **Role-Based Navigation** - Different paths for different users
+4. **Single Source of Truth** - One location for each document
+5. **Cross-Referenced** - Documents link to related information
 
-### **Advanced Path**
-1. **Complete Architecture** - [MICRODOTS.md](../MICRODOTS.md) Full Guide
-2. **System Mastery** - [IMPLEMENTATION.md](IMPLEMENTATION.md) All Sections
-3. **Development Standards** - [UI_STYLE_GUIDE.md](UI_STYLE_GUIDE.md) + [COMPLIANCE.md](COMPLIANCE.md)
+## 🤝 Contributing to Documentation
 
-## 🔍 Search Guide
-
-### **Find Information By Topic**
-
-- **Installation & Setup** → [README.md](../README.md), [LOCAL_OVERRIDES.md](LOCAL_OVERRIDES.md)
-- **Architecture & Design** → [MICRODOTS.md](../MICRODOTS.md), [IMPLEMENTATION.md](IMPLEMENTATION.md)
-- **Configuration Management** → [LOCAL_OVERRIDES.md](LOCAL_OVERRIDES.md), [MIGRATION_TO_DOTLOCAL.md](MIGRATION_TO_DOTLOCAL.md)
-- **Development & Standards** → [UI_STYLE_GUIDE.md](UI_STYLE_GUIDE.md), [COMPLIANCE.md](COMPLIANCE.md)
-- **Commands & Variables** → [GLOSSARY.md](GLOSSARY.md), [IMPLEMENTATION.md](IMPLEMENTATION.md)
-- **Troubleshooting** → [IMPLEMENTATION.md](IMPLEMENTATION.md), [LOCAL_OVERRIDES.md](LOCAL_OVERRIDES.md)
-- **Testing** → [COMPLIANCE.md](COMPLIANCE.md), [LOCAL_OVERRIDES.md](LOCAL_OVERRIDES.md)
-
-### **Find Information By Role**
-
-- **End Users** → [README.md](../README.md), [LOCAL_OVERRIDES.md](LOCAL_OVERRIDES.md), [GLOSSARY.md](GLOSSARY.md)
-- **System Administrators** → [IMPLEMENTATION.md](IMPLEMENTATION.md), [COMPLIANCE.md](COMPLIANCE.md)
-- **Developers** → [MICRODOTS.md](../MICRODOTS.md), [UI_STYLE_GUIDE.md](UI_STYLE_GUIDE.md), [IMPLEMENTATION.md](IMPLEMENTATION.md)
-- **AI Agents** → [CLAUDE.md](../CLAUDE.md), All documentation as specified
-
-## 📞 Support & Maintenance
-
-### **Getting Help**
-1. Check the [GLOSSARY.md](GLOSSARY.md) for definitions
-2. Search relevant documentation sections
-3. Run diagnostic commands from [IMPLEMENTATION.md](IMPLEMENTATION.md)
-4. Review [COMPLIANCE.md](COMPLIANCE.md) for known issues
-
-### **Contributing to Documentation**
-1. Follow [UI_STYLE_GUIDE.md](UI_STYLE_GUIDE.md) for formatting
-2. Reference [MICRODOTS.md](../MICRODOTS.md) for architectural alignment
-3. Update this index when adding new documents
-4. Maintain cross-references in [GLOSSARY.md](GLOSSARY.md)
-
-### **Documentation Maintenance Schedule**
-- **Weekly**: Link validation and cross-reference checks
-- **Monthly**: Content accuracy review and updates
-- **Quarterly**: Compliance assessment updates
-- **Annually**: Complete architecture review and reorganization
+When adding new documentation:
+1. Choose the appropriate category (architecture/guides/reference)
+2. Follow the naming convention (UPPERCASE.md for major docs)
+3. Update this README.md index
+4. Ensure proper cross-references
+5. Follow the [UI Style Guide](guides/UI_STYLE_GUIDE.md) for formatting
 
 ---
 
-*This documentation hub is actively maintained and reflects the current state of the Microdots system. Last updated: 2025-09-12*
+*Last Updated: 2025-01-14*
+*Documentation Version: 2.0*

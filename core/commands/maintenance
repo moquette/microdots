@@ -8,6 +8,7 @@ set -euo pipefail
 # Source common utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../lib/common.sh"
+source "${SCRIPT_DIR}/../lib/paths.sh"
 
 # Load DOTLOCAL from dotfiles.conf if it exists
 DOTFILES_ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
@@ -319,6 +320,51 @@ check_symlinks() {
     fi
 }
 
+# Check and repair infrastructure symlinks
+check_infrastructure() {
+    subheader "🔧 Infrastructure Health"
+
+    # Discover dotlocal path
+    local dotlocal_path=""
+    if [[ -n "${DOTLOCAL:-}" ]]; then
+        dotlocal_path=$(expand_path "$DOTLOCAL")
+    else
+        # Try to discover it
+        dotlocal_path=$(discover_dotlocal_path "$DOTFILES_ROOT" "false" 2>/dev/null || echo "")
+    fi
+
+    if [[ -z "$dotlocal_path" ]] || [[ ! -d "$dotlocal_path" ]]; then
+        warning "No dotlocal directory found - skipping infrastructure check"
+        TASKS_SKIPPED=$((TASKS_SKIPPED + 1))
+        return
+    fi
+
+    # Validate infrastructure symlinks
+    local issues=0
+    if validate_infrastructure_symlinks "$dotlocal_path" "$DOTFILES_ROOT" "false" 2>/dev/null; then
+        success "Infrastructure symlinks healthy"
+        TASKS_SUCCESSFUL=$((TASKS_SUCCESSFUL + 1))
+    else
+        issues=$?
+        warning "Found $issues infrastructure issue(s)"
+
+        if [[ "${DRY_RUN:-false}" == "true" ]]; then
+            info "[dry-run] Would repair infrastructure symlinks"
+            TASKS_SKIPPED=$((TASKS_SKIPPED + 1))
+        else
+            info "Repairing infrastructure symlinks..."
+            if repair_infrastructure "$dotlocal_path" "$DOTFILES_ROOT" "false" 2>/dev/null; then
+                success "Infrastructure repaired successfully"
+                TASKS_SUCCESSFUL=$((TASKS_SUCCESSFUL + 1))
+            else
+                error "Infrastructure repair failed"
+                info "Run 'dots repair-infrastructure' for detailed output"
+                TASKS_FAILED=$((TASKS_FAILED + 1))
+            fi
+        fi
+    fi
+}
+
 # MCP sync if available
 sync_mcp_config() {
     if [[ -f "$DOTFILES_DIR/mcp/mcp.zsh" ]]; then
@@ -436,6 +482,7 @@ Tasks performed:
     - Sync dotlocal repository (if exists)
     - Update Homebrew and packages (unless --quick)
     - Check symlink health
+    - Repair infrastructure symlinks (if needed)
     - Sync MCP configuration
     - Run system health checks
 
@@ -492,7 +539,10 @@ EOF
     
     # Check symlinks
     check_symlinks
-    
+
+    # Check and repair infrastructure
+    check_infrastructure
+
     # MCP sync
     sync_mcp_config
     

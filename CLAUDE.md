@@ -11,12 +11,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    - Your protocol @~/.claude/PROTOCOL.md
 
 2. **Architecture Documentation:**
-   - @MICRODOTS.md - Complete architecture guide
-   - @docs/IMPLEMENTATION.md - Technical implementation details
-   - @docs/COMPLIANCE.md - System compliance assessment
-   - @docs/LOCAL_OVERRIDES.md - Dotlocal system documentation
-   - @docs/MIGRATION_TO_DOTLOCAL.md - Migration from .local to .dotlocal
-   - @docs/UI_STYLE_GUIDE.md - UI library and output standards
+   - @MICRODOTS.md - Complete architecture guide (symlink to docs/architecture/)
+   - @docs/architecture/IMPLEMENTATION.md - Technical implementation details
+   - @docs/architecture/COMPLIANCE.md - System compliance assessment
+   - @docs/guides/LOCAL_OVERRIDES.md - Dotlocal system documentation
+   - @docs/guides/MIGRATION_TO_DOTLOCAL.md - Migration from .local to .dotlocal
+   - @docs/guides/UI_STYLE_GUIDE.md - UI library and output standards
 
 3. **Confirmation Required:**
    After reading all documentation, you MUST provide this visual confirmation:
@@ -25,11 +25,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    - [x] ~/.claude/README.md - Global configuration loaded
    - [x] ~/.claude/PROTOCOL.md - Autonomous execution protocol internalized
    - [x] MICRODOTS.md - Architecture guide understood
-   - [x] docs/IMPLEMENTATION.md - Technical details reviewed
-   - [x] docs/COMPLIANCE.md - Compliance standards acknowledged
-   - [x] docs/LOCAL_OVERRIDES.md - Dotlocal system understood
-   - [x] docs/MIGRATION_TO_DOTLOCAL.md - Migration guide reviewed
-   - [x] docs/UI_STYLE_GUIDE.md - UI standards loaded
+   - [x] docs/architecture/IMPLEMENTATION.md - Technical details reviewed
+   - [x] docs/architecture/COMPLIANCE.md - Compliance standards acknowledged
+   - [x] docs/guides/LOCAL_OVERRIDES.md - Dotlocal system understood
+   - [x] docs/guides/MIGRATION_TO_DOTLOCAL.md - Migration guide reviewed
+   - [x] docs/guides/UI_STYLE_GUIDE.md - UI standards loaded
    ```
    
    Only after displaying this confirmation should you proceed with any tasks.
@@ -97,12 +97,19 @@ The documentation is organized hierarchically for clarity:
 - **`CLAUDE.md`** - This file, AI agent configuration  
 - **`MICRODOTS.md`** - Complete architecture guide with testing & troubleshooting
 
-### Reference Documentation (`docs/` folder)
-- **`docs/IMPLEMENTATION.md`** - Technical implementation details and internals
-- **`docs/COMPLIANCE.md`** - System compliance assessment and validation
-- **`docs/LOCAL_OVERRIDES.md`** - Comprehensive dotlocal system documentation with precedence rules
-- **`docs/MIGRATION_TO_DOTLOCAL.md`** - Migration guide from .local to .dotlocal naming
-- **`docs/UI_STYLE_GUIDE.md`** - UI library usage and output formatting standards
+### Architecture Documentation (`docs/architecture/`)
+- **`docs/architecture/IMPLEMENTATION.md`** - Technical implementation details and internals
+- **`docs/architecture/COMPLIANCE.md`** - System compliance assessment and validation
+- **`docs/architecture/INFRASTRUCTURE.md`** - Infrastructure symlinks and shared components
+- **`docs/architecture/MICRODOTS.md`** - Complete microservices architecture guide
+
+### Guide Documentation (`docs/guides/`)
+- **`docs/guides/LOCAL_OVERRIDES.md`** - Comprehensive dotlocal system documentation with precedence rules
+- **`docs/guides/MIGRATION_TO_DOTLOCAL.md`** - Migration guide from .local to .dotlocal naming
+- **`docs/guides/UI_STYLE_GUIDE.md`** - UI library usage and output formatting standards
+
+### Reference Documentation (`docs/reference/`)
+- **`docs/reference/GLOSSARY.md`** - Complete terminology, commands, and function reference
 
 **IMPORTANT:** All documents in the `docs/` folder are required reading as specified in the MANDATORY READING REQUIREMENTS section above.
 
@@ -180,7 +187,7 @@ The dotlocal system provides complete separation of public and private configura
 - **Cloud sync compatible** - Can link to iCloud/Dropbox directories
 - **Same structure** as public topics for consistency
 
-See `docs/LOCAL_OVERRIDES.md` for complete dotlocal documentation including migration guides and testing procedures.
+See `docs/guides/LOCAL_OVERRIDES.md` for complete dotlocal documentation including migration guides and testing procedures.
 
 ### MCP Integration Architecture
 
@@ -294,7 +301,7 @@ The dotlocal system automatically creates 6 infrastructure symlinks that provide
 ├── MICRODOTS.md → ~/.dotfiles/MICRODOTS.md    # Architecture guide
 ├── CLAUDE.md → ~/.dotfiles/CLAUDE.md          # AI agent configuration
 ├── TASKS.md → ~/.dotfiles/TASKS.md            # Project tasks
-└── COMPLIANCE.md → ~/.dotfiles/docs/COMPLIANCE.md  # Compliance documentation
+└── COMPLIANCE.md → ~/.dotfiles/docs/architecture/COMPLIANCE.md  # Compliance documentation
 ```
 
 **These are the ONLY acceptable cross-repository dependencies** because they provide:

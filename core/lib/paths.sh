@@ -196,7 +196,7 @@ setup_dotlocal_infrastructure() {
         "MICRODOTS.md:$dotfiles_root/MICRODOTS.md"    # Architecture guide
         "CLAUDE.md:$dotfiles_root/CLAUDE.md"          # AI agent configuration
         "TASKS.md:$dotfiles_root/TASKS.md"            # Project tasks
-        "COMPLIANCE.md:$dotfiles_root/docs/COMPLIANCE.md"  # Compliance documentation
+        "COMPLIANCE.md:$dotfiles_root/docs/architecture/COMPLIANCE.md"  # Compliance documentation
     )
 
     for symlink_spec in "${infrastructure_symlinks[@]}"; do
@@ -249,7 +249,7 @@ validate_infrastructure_symlinks() {
         "MICRODOTS.md:$dotfiles_root/MICRODOTS.md"
         "CLAUDE.md:$dotfiles_root/CLAUDE.md"
         "TASKS.md:$dotfiles_root/TASKS.md"
-        "COMPLIANCE.md:$dotfiles_root/docs/COMPLIANCE.md"
+        "COMPLIANCE.md:$dotfiles_root/docs/architecture/COMPLIANCE.md"
     )
 
     [[ "$verbose" == "true" ]] && info "Validating infrastructure symlinks in: $dotlocal_path" >&2
@@ -342,7 +342,7 @@ repair_infrastructure() {
                     "$dotfiles_root/MICRODOTS.md"
                     "$dotfiles_root/CLAUDE.md"
                     "$dotfiles_root/TASKS.md"
-                    "$dotfiles_root/docs/COMPLIANCE.md"
+                    "$dotfiles_root/docs/architecture/COMPLIANCE.md"
                 )
 
                 # Check if it points to any expected location

@@ -48,7 +48,7 @@ while [[ $# -gt 0 ]]; do
       list_item "MICRODOTS.md → Architecture guide"
       list_item "CLAUDE.md → AI agent configuration"
       list_item "TASKS.md → Project tasks"
-      list_item "COMPLIANCE.md → Compliance documentation"
+      list_item "COMPLIANCE.md → Architecture compliance documentation"
       exit 0
       ;;
     *)

@@ -23,10 +23,10 @@ The AI should display:
 - [x] ~/.claude/README.md - Global configuration loaded
 - [x] ~/.claude/PROTOCOL.md - Autonomous execution protocol internalized
 - [x] MICRODOTS.md - Architecture guide understood
-- [x] docs/IMPLEMENTATION.md - Technical details reviewed
-- [x] docs/COMPLIANCE.md - Compliance standards acknowledged
-- [x] docs/LOCAL_OVERRIDES.md - Dotlocal system understood
-- [x] docs/UI_STYLE_GUIDE.md - UI standards loaded
+- [x] docs/architecture/IMPLEMENTATION.md - Technical details reviewed
+- [x] docs/architecture/COMPLIANCE.md - Compliance standards acknowledged
+- [x] docs/guides/LOCAL_OVERRIDES.md - Dotlocal system understood
+- [x] docs/guides/UI_STYLE_GUIDE.md - UI standards loaded
 ```
 
 ### Method 3: Automated Test

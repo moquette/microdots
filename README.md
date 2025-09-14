@@ -195,7 +195,7 @@ The system automatically creates **6 infrastructure symlinks** in your dotlocal 
 ├── MICRODOTS.md → ~/.dotfiles/MICRODOTS.md    # Architecture guide
 ├── CLAUDE.md → ~/.dotfiles/CLAUDE.md          # AI agent configuration
 ├── TASKS.md → ~/.dotfiles/TASKS.md            # Project tasks
-└── COMPLIANCE.md → ~/.dotfiles/docs/COMPLIANCE.md  # Compliance documentation
+└── COMPLIANCE.md → ~/.dotfiles/docs/architecture/COMPLIANCE.md  # Compliance documentation
 ```
 
 These symlinks provide essential infrastructure access while maintaining the zero-coupling principle. They enable proper tooling, documentation access, and development support without creating functional dependencies between microdots.
