@@ -185,12 +185,19 @@ fi
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${YELLOW}🚀 Bootstrapping dotfiles installation...${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-~/.dotfiles/core/dots bootstrap --install
+echo ""
+
+# Run bootstrap with install flag - show all output
+if ~/.dotfiles/core/dots bootstrap --install; then
+  echo -e "\n${GREEN}✅ Bootstrap completed successfully!${NC}"
+else
+  echo -e "\n${YELLOW}⚠ Bootstrap completed with warnings${NC}"
+  echo -e "${YELLOW}  Some components may not have installed properly${NC}"
+  echo -e "${YELLOW}  You can run 'dots install' later to retry${NC}"
+fi
 
 # Kill the sudo keep-alive background process
 kill $SUDO_PID 2>/dev/null
-
-echo -e "${GREEN}✅ Bootstrap completed!${NC}\n"
 
 # Shell reload section - fixed for zsh compatibility
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

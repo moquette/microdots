@@ -4,7 +4,8 @@
 # Sets up gitconfig, installs symlinks, and optionally runs installers
 #
 
-set -e
+# Don't use set -e to prevent early exit on non-critical errors
+# We'll handle errors explicitly where needed
 
 # Get the dotfiles root directory
 DOTFILES_ROOT="$(cd "$(dirname "$0")/../.." && pwd -P)"
@@ -140,7 +141,7 @@ install_dotfiles() {
   source "$DOTFILES_ROOT/core/lib/symlink.sh"
 
   # Create dots command symlink
-  create_command_symlink "$DOTFILES_ROOT/core/dots" "$DOTFILES_ROOT/bin/dots" "dots"
+  create_command_symlink "$DOTFILES_ROOT/core/dots" "$DOTFILES_ROOT/bin/dots" "dots" || warning "Could not create dots command symlink"
 
   # Use the discovered dotlocal path from auto-discovery
   local local_dir="${DISCOVERED_DOTLOCAL_PATH:-}"
@@ -165,7 +166,9 @@ install_dotfiles() {
 
   # Use the proper two-phase symlink creation with precedence
   # This will handle both public and local symlinks correctly
-  create_all_symlinks_with_precedence "$DOTFILES_ROOT" "$local_dir" "false" "false"
+  create_all_symlinks_with_precedence "$DOTFILES_ROOT" "$local_dir" "false" "false" || warning "Some symlinks could not be created"
+
+  info "Symlink installation completed"
 }
 
 setup_dotlocal_symlink() {
@@ -203,14 +206,18 @@ setup_dotlocal_symlink() {
       if [[ "$dry_run" == "true" ]]; then
         info "Would create .dotlocal symlink: .dotlocal → $discovered_path"
       else
-        create_infrastructure_symlink "$discovered_path" "$dotlocal_symlink" ".dotlocal" "false" "true"
+        # Don't fail bootstrap if symlink creation fails (e.g., due to spaces in path)
+        if ! create_infrastructure_symlink "$discovered_path" "$dotlocal_symlink" ".dotlocal" "false" "true"; then
+          warning "Could not create .dotlocal symlink (path may contain special characters)"
+          warning "You can manually create it later with: ln -s '$discovered_path' '$dotlocal_symlink'"
+        fi
       fi
     else
       info ".dotlocal symlink already correct"
     fi
 
-    # Also create the core symlink in dotlocal for library access
-    setup_dotlocal_infrastructure "$discovered_path" "$DOTFILES_ROOT"
+    # Also create the core symlink in dotlocal for library access (don't fail on error)
+    setup_dotlocal_infrastructure "$discovered_path" "$DOTFILES_ROOT" || warning "Some infrastructure symlinks could not be created"
   fi
 
   # Export for use by other functions
@@ -219,13 +226,14 @@ setup_dotlocal_symlink() {
 
 install_homebrew() {
   if [[ "$(uname -s)" == "Darwin" ]]; then
-    info "Checking Homebrew..."
-    
+    subheader "Homebrew Installation"
+    info "Checking for Homebrew..."
+
     if ! command -v brew >/dev/null 2>&1; then
-      info "Installing Homebrew..."
-      
-      # Run the Homebrew installer
-      if "$DOTFILES_ROOT/homebrew/install.sh" 2>&1; then
+      progress "Installing Homebrew (this may take a few minutes)..."
+
+      # Run the Homebrew installer with proper output
+      if "$DOTFILES_ROOT/homebrew/install.sh"; then
         # Setup Homebrew environment for the rest of this script
         if [ -x /opt/homebrew/bin/brew ]; then
           eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -249,6 +257,9 @@ main() {
   setup_gitconfig
   setup_dotlocal_symlink  # MUST happen before install_dotfiles to ensure .local exists
   install_dotfiles
+
+  # Debug: Ensure we reach this point
+  info "About to install Homebrew..."
   install_homebrew
 
   # Run installers if requested

@@ -695,7 +695,8 @@ _create_symlink_raw() {
     fi
 
     # CREATE THE SYMLINK - THE ONLY ln -s IN THE ENTIRE CODEBASE
-    if ln -s "$source" "$target" 2>/dev/null; then
+    # Using -- to handle paths with spaces and special characters
+    if ln -s -- "$source" "$target" 2>/dev/null; then
         return 0
     else
         error "Failed to create symlink: $target → $source" >&2
