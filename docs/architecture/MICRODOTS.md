@@ -464,6 +464,42 @@ tool_path=$(detect_tool_path)         # Gets clean path, not debug text
 
 **Why Critical**: Command substitution captures ALL stdout. Debug messages mixed with return values create corrupted symlinks and filesystem damage. After resolving a major filesystem corruption bug, this pattern is mandatory for all library functions.
 
+#### 5. Symlink Architecture Compliance (CRITICAL)
+```bash
+# ✅ CORRECT: Use symlink.sh library functions
+source "$DOTFILES_ROOT/core/lib/symlink.sh"
+
+# For application configs (Claude Desktop, MCP)
+create_application_symlink "$source" "$target" "$app_name" "false" "false" "true"
+
+# For infrastructure symlinks (core, docs access)
+create_infrastructure_symlink "$source" "$target" "$name" "false" "true"
+
+# For bootstrap setup (early initialization)
+create_bootstrap_symlink "$source" "$target" "$name" "false"
+
+# For command line tools (bin/dots)
+create_command_symlink "$source" "$target" "$command_name" "false"
+
+# ❌ CATASTROPHIC: Never call ln -s directly
+ln -s "$source" "$target"              # FORBIDDEN - Bypasses single source of truth
+command ln -s "$source" "$target"      # FORBIDDEN - No error handling or consistency
+```
+
+**Why Critical**: The system uses a Three-Tier Symlink Architecture where ONLY `_create_symlink_raw()` may call `ln -s`. All symlink creation MUST go through the appropriate specialized function to ensure:
+- Consistent error handling and logging
+- Command substitution safety
+- Proper precedence in dotlocal system
+- Centralized maintenance and debugging
+- Uniform behavior across all symlinks
+
+**Architecture Layers:**
+- **Layer 1**: High-level orchestration (`create_all_symlinks_with_precedence`)
+- **Layer 2**: Specialized functions (infrastructure, bootstrap, application, command)
+- **Layer 3**: Single source of truth (`_create_symlink_raw` - ONLY function with `ln -s`)
+
+**Migration Required**: Any existing code using direct `ln -s` must be converted to use the appropriate specialized function from Layer 2.
+
 #### 5. Self-Contained Design
 ```bash
 # GOOD: Everything in microdot directory

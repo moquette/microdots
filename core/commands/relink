@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # dots relink - Recreate all symlinks with local precedence
-# Refactored to use unified UI style
+# REFACTORED: Uses symlink.sh library (eliminates code duplication)
 #
 
 set -e
@@ -13,6 +13,7 @@ CORE_DIR="$DOTFILES_ROOT/core"
 # Source libraries
 source "$CORE_DIR/lib/ui.sh"
 source "$CORE_DIR/lib/validate-config.sh"
+source "$CORE_DIR/lib/symlink.sh"
 source "$CORE_DIR/lib/paths.sh"
 
 # Load DOTLOCAL from dotfiles.conf if it exists (for backward compatibility)
@@ -41,6 +42,7 @@ while test $# -gt 0; do
       ;;
     --verbose)
       verbose=true
+      SYMLINK_VERBOSE=true  # Set for symlink.sh library
       ;;
     --help)
       header "📎 Dots Relink"
@@ -71,6 +73,27 @@ while test $# -gt 0; do
   esac
   shift
 done
+
+# Override the default UI callback from symlink.sh with our enhanced version
+symlink_ui_callback() {
+    local action="$1"
+    local message="${2:-}"
+    local details="${3:-}"
+
+    case "$action" in
+        "subheader") subheader "$message" ;;
+        "progress") progress "$message" ;;
+        "success") success "$message" ;;
+        "info") info "$message" ;;
+        "error") error "$message" ;;
+        "skip")
+            if [[ "$verbose" == "true" ]]; then
+                list_item "$message"  # Use list_item for individual symlinks
+            fi
+            ;;
+        "count") ;; # We'll handle counting in the summary
+    esac
+}
 
 # Main execution
 header "📎 Dotfiles Relink"
@@ -115,7 +138,7 @@ subheader "Dotlocal Setup"
 progress "Auto-discovering local configuration directory"
 
 # Use the comprehensive path resolution
-discovered_path=$(resolve_dotlocal_path "$DOTFILES_ROOT" "false" "$verbose")
+discovered_path=$(discover_dotlocal_path "$DOTFILES_ROOT" "false" "$verbose")
 discovery_method=$(get_dotlocal_discovery_method)
 
 if [[ -n "$discovered_path" ]]; then
@@ -137,178 +160,61 @@ fi
 # Clean broken symlinks if requested
 if [[ "$clean" == "true" ]]; then
     subheader "Cleanup"
-    progress "Cleaning broken symlinks"
-    
-    # Source symlink functions
-    source "$CORE_DIR/lib/symlink.sh"
-    
-    broken_count=0
-    while IFS= read -r symlink; do
-        if [[ ! -e "$symlink" ]]; then
-            if [[ "$dry_run" == "true" ]]; then
-                info "[dry-run] Would remove broken symlink: $symlink"
-            else
-                rm "$symlink"
-                [[ "$verbose" == "true" ]] && list_item "Removed: $(basename "$symlink")"
-            fi
-            broken_count=$((broken_count + 1))
-        fi
-    done < <(find "$HOME" -maxdepth 1 -type l -name ".*" 2>/dev/null)
-    
-    if [[ $broken_count -gt 0 ]]; then
-        success "Cleaned $broken_count broken symlinks"
-    else
-        info "No broken symlinks found"
-    fi
+    clean_broken_dotfile_symlinks "$dry_run"
 fi
 
-# Create all symlinks with precedence
-subheader "Symlink Creation"
+# CRITICAL FIX: Use symlink.sh library instead of duplicate code!
+# This eliminates 100+ lines of duplicate symlink logic
+export SYMLINK_VERBOSE="$verbose"  # Pass verbose setting to library
+create_all_symlinks_with_precedence "$DOTFILES_ROOT" "$discovered_path" "$dry_run" "$force"
 
-# Track counters
-public_count=0
-local_count=0
-skip_count=0
+# Get the counts from the library
+public_count=${SYMLINK_PUBLIC_COUNT:-0}
+local_count=${SYMLINK_LOCAL_COUNT:-0}
+skip_count=${SYMLINK_SKIP_COUNT:-0}
 
-# Helper function for creating symlinks with UI
-create_symlink_ui() {
-    local source="$1"
-    local target="$2"
-    local is_local="$3"
-    
-    if [[ "$dry_run" == "true" ]]; then
-        info "[dry-run] Would link $(basename "$target") → $source"
-        return 0
-    fi
-    
-    # Create symlink
-    if [[ "$force" == "true" ]] || [[ ! -e "$target" && ! -L "$target" ]]; then
-        # Remove existing to ensure clean replacement
-        if [[ -e "$target" || -L "$target" ]]; then
-            rm -rf "$target"
-        fi
-        
-        # Create parent directory if needed
-        local parent_dir=$(dirname "$target")
-        [[ ! -d "$parent_dir" ]] && mkdir -p "$parent_dir"
-        
-        if ln -s "$source" "$target"; then
-            if [[ "$verbose" == "true" ]]; then
-                if [[ "$is_local" == "true" ]]; then
-                    list_item "$(basename "$target") → [LOCAL] $(basename "$(dirname "$source")")/$(basename "$source")"
-                else
-                    list_item "$(basename "$target") → $(basename "$(dirname "$source")")/$(basename "$source")"
-                fi
-            fi
-            return 0
-        else
-            error "Failed to link: $target"
-            return 1
-        fi
-    else
-        return 2  # Already exists
-    fi
-}
-
-# Source symlink helper functions
-source "$CORE_DIR/lib/symlink.sh"
-
-# Process public configs first
-if [[ "$dry_run" == "true" ]]; then
-    info "Processing public configurations (dry-run)"
-else
-    progress "Processing public configurations"
-fi
-
-if [[ -d "$DOTFILES_ROOT" ]]; then
-    while IFS= read -r source; do
-        should_exclude "$source" && continue
-        
-        target=$(get_symlink_target "$source")
-        
-        # Skip if local version exists (will be handled in phase 2)
-        if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
-            relative_path="${source#$DOTFILES_ROOT/}"
-            local_equivalent="$discovered_path/${relative_path}"
-            if [[ -f "$local_equivalent" ]]; then
-                skip_count=$((skip_count + 1))
-                [[ "$verbose" == "true" ]] && indent "Skipped $(basename "$target") (has local override)"
-                continue
-            fi
-        fi
-        
-        if create_symlink_ui "$source" "$target" false; then
-            public_count=$((public_count + 1))
-        fi
-    done < <(find "$DOTFILES_ROOT" -name "*.symlink" -not -path "*/.dotlocal/*" 2>/dev/null)
-fi
-
-[[ "$dry_run" == "false" ]] && success "Public configurations linked: $public_count"
-
-# Process local configs second (they override)
-if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
-    if [[ "$dry_run" == "true" ]]; then
-        info "Processing local overrides (dry-run)"
-    else
-        progress "Processing local overrides"
-    fi
-
-    while IFS= read -r source; do
-        should_exclude "$source" && continue
-
-        target=$(get_symlink_target "$source")
-        # Force mode for local - they always override
-        if create_symlink_ui "$source" "$target" true; then
-            local_count=$((local_count + 1))
-        fi
-    done < <(find "$discovered_path" -name "*.symlink" 2>/dev/null)
-
-    [[ "$dry_run" == "false" ]] && success "Local overrides linked: $local_count"
-else
-    [[ "$dry_run" == "false" ]] && info "No local directory available for overrides"
-fi
-
-# Process Claude commands, agents, and global files if local directory exists
+# Handle Claude-specific symlinks (this is relink-specific business logic)
 claude_count=0
 claude_global_count=0
 claude_agent_count=0
+
 if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
+    # Process Claude commands, agents, and global files
     CLAUDE_COMMANDS_DIR="$discovered_path/claude/commands"
     CLAUDE_GLOBAL_DIR="$discovered_path/claude/global"
     CLAUDE_AGENTS_DIR="$discovered_path/claude/agents"
     GLOBAL_CLAUDE_DIR="$HOME/.claude/commands"
     GLOBAL_CLAUDE_AGENTS="$HOME/.claude/agents"
     GLOBAL_CLAUDE_ROOT="$HOME/.claude"
-    
+
+    # Claude commands processing
     if [[ -d "$CLAUDE_COMMANDS_DIR" ]]; then
         if [[ "$dry_run" == "true" ]]; then
             info "Processing Claude commands (dry-run)"
         else
             progress "Processing Claude commands"
         fi
-        
-        # Ensure global Claude commands directory exists
+
+        # Create directory and clean if needed
         if [[ "$dry_run" == "false" ]]; then
             [[ ! -d "$GLOBAL_CLAUDE_DIR" ]] && mkdir -p "$GLOBAL_CLAUDE_DIR"
+
+            if [[ "$clean" == "true" ]]; then
+                while IFS= read -r symlink; do
+                    if [[ ! -e "$symlink" ]]; then
+                        rm -f "$symlink"
+                        [[ "$verbose" == "true" ]] && list_item "Removed broken: $(basename "$symlink")"
+                    fi
+                done < <(find "$GLOBAL_CLAUDE_DIR" -type l 2>/dev/null)
+            fi
         fi
-        
-        # Clean broken Claude command symlinks
-        if [[ "$clean" == "true" ]] && [[ "$dry_run" == "false" ]]; then
-            while IFS= read -r symlink; do
-                if [[ ! -e "$symlink" ]]; then
-                    rm -f "$symlink"
-                    [[ "$verbose" == "true" ]] && list_item "Removed broken: $(basename "$symlink")"
-                fi
-            done < <(find "$GLOBAL_CLAUDE_DIR" -type l 2>/dev/null)
-        fi
-        
+
         # Link all Claude command files
         while IFS= read -r source; do
             filename=$(basename "$source")
             target="$GLOBAL_CLAUDE_DIR/$filename"
-            
+
             if [[ "$dry_run" == "true" ]]; then
-                # Check if would need updating
                 if [[ -L "$target" ]]; then
                     current_target=$(readlink "$target")
                     if [[ "$current_target" != "$source" ]]; then
@@ -322,63 +228,53 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
                     claude_count=$((claude_count + 1))
                 fi
             else
-                # Check if symlink exists and points to wrong location
+                # Real symlink creation
+                update_needed=false
                 if [[ -L "$target" ]]; then
                     current_target=$(readlink "$target")
                     if [[ "$current_target" != "$source" ]] || [[ ! -e "$target" ]] || [[ "$force" == "true" ]]; then
+                        update_needed=true
                         rm -f "$target"
-                        if ln -s "$source" "$target"; then
-                            claude_count=$((claude_count + 1))
-                            [[ "$verbose" == "true" ]] && list_item "Claude command updated: $filename"
-                        else
-                            error "Failed to link Claude command: $filename"
-                        fi
-                    elif [[ "$verbose" == "true" ]]; then
-                        indent "Claude command already correct: $filename"
                     fi
                 elif [[ ! -e "$target" ]]; then
-                    # Create new symlink
-                    if ln -s "$source" "$target"; then
+                    update_needed=true
+                elif [[ -e "$target" ]] && [[ ! -L "$target" ]]; then
+                    warning "Regular file exists, skipping: $filename"
+                    continue
+                fi
+
+                if [[ "$update_needed" == "true" ]]; then
+                    if create_application_symlink "$source" "$target" "$filename" "$force" "$dry_run" "$verbose"; then
                         claude_count=$((claude_count + 1))
                         [[ "$verbose" == "true" ]] && list_item "Claude command linked: $filename"
                     else
                         error "Failed to link Claude command: $filename"
                     fi
-                elif [[ -e "$target" ]] && [[ ! -L "$target" ]]; then
-                    warning "Regular file exists, skipping: $filename"
+                elif [[ "$verbose" == "true" ]]; then
+                    indent "Claude command already correct: $filename"
                 fi
             fi
         done < <(find "$CLAUDE_COMMANDS_DIR" -name "*.md" 2>/dev/null)
-        
-        if [[ "$dry_run" == "false" ]] && [[ $claude_count -gt 0 ]]; then
-            success "Claude commands linked: $claude_count"
-        fi
     fi
-    
-    # Process Claude global files (PROTOCOL.md, CLAUDE.md)
+
+    # Claude global files (PROTOCOL.md, CLAUDE.md)
     if [[ -d "$CLAUDE_GLOBAL_DIR" ]]; then
         if [[ "$dry_run" == "true" ]]; then
             info "Processing Claude global files (dry-run)"
         else
             progress "Processing Claude global files"
-        fi
-        
-        # Ensure global Claude root directory exists
-        if [[ "$dry_run" == "false" ]]; then
             [[ ! -d "$GLOBAL_CLAUDE_ROOT" ]] && mkdir -p "$GLOBAL_CLAUDE_ROOT"
         fi
-        
-        # Link PROTOCOL.md and CLAUDE.md
+
         for file in "PROTOCOL.md" "CLAUDE.md"; do
-            source="$CLAUDE_GLOBAL_DIR/$file"
+            source_file="$CLAUDE_GLOBAL_DIR/$file"
             target="$GLOBAL_CLAUDE_ROOT/$file"
-            
-            if [[ -f "$source" ]]; then
+
+            if [[ -f "$source_file" ]]; then
                 if [[ "$dry_run" == "true" ]]; then
-                    # Check if would need updating
                     if [[ -L "$target" ]]; then
                         current_target=$(readlink "$target")
-                        if [[ "$current_target" != "$source" ]]; then
+                        if [[ "$current_target" != "$source_file" ]]; then
                             info "[dry-run] Would update Claude global file: $file"
                             claude_global_count=$((claude_global_count + 1))
                         elif [[ "$verbose" == "true" ]]; then
@@ -389,51 +285,44 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
                         claude_global_count=$((claude_global_count + 1))
                     fi
                 else
-                    # Check if symlink exists and points to wrong location
+                    # Real symlink creation
+                    update_needed=false
                     if [[ -L "$target" ]]; then
                         current_target=$(readlink "$target")
-                        if [[ "$current_target" != "$source" ]] || [[ ! -e "$target" ]] || [[ "$force" == "true" ]]; then
+                        if [[ "$current_target" != "$source_file" ]] || [[ ! -e "$target" ]] || [[ "$force" == "true" ]]; then
+                            update_needed=true
                             rm -f "$target"
-                            if ln -s "$source" "$target"; then
-                                claude_global_count=$((claude_global_count + 1))
-                                [[ "$verbose" == "true" ]] && list_item "Claude global file updated: $file"
-                            else
-                                error "Failed to link Claude global file: $file"
-                            fi
-                        elif [[ "$verbose" == "true" ]]; then
-                            indent "Claude global file already correct: $file"
                         fi
                     elif [[ ! -e "$target" ]]; then
-                        # Create new symlink
-                        if ln -s "$source" "$target"; then
+                        update_needed=true
+                    elif [[ -e "$target" ]] && [[ ! -L "$target" ]]; then
+                        warning "Regular file exists, skipping: $file"
+                        continue
+                    fi
+
+                    if [[ "$update_needed" == "true" ]]; then
+                        if create_application_symlink "$source_file" "$target" "$file" "$force" "$dry_run" "$verbose"; then
                             claude_global_count=$((claude_global_count + 1))
                             [[ "$verbose" == "true" ]] && list_item "Claude global file linked: $file"
                         else
                             error "Failed to link Claude global file: $file"
                         fi
-                    elif [[ -e "$target" ]] && [[ ! -L "$target" ]]; then
-                        warning "Regular file exists, skipping: $file"
+                    elif [[ "$verbose" == "true" ]]; then
+                        indent "Claude global file already correct: $file"
                     fi
                 fi
             fi
         done
-        
-        if [[ "$dry_run" == "false" ]] && [[ $claude_global_count -gt 0 ]]; then
-            success "Claude global files linked: $claude_global_count"
-        fi
     fi
-    
-    # Process Claude agents
+
+    # Claude agents processing
     if [[ -d "$CLAUDE_AGENTS_DIR" ]]; then
         if [[ "$dry_run" == "true" ]]; then
             info "Processing Claude agents (dry-run)"
         else
             progress "Processing Claude agents"
-            
-            # Ensure global Claude agents directory exists
             [[ ! -d "$GLOBAL_CLAUDE_AGENTS" ]] && mkdir -p "$GLOBAL_CLAUDE_AGENTS"
-            
-            # Clean broken Claude agent symlinks
+
             if [[ "$clean" == "true" ]] || [[ "$force" == "true" ]]; then
                 while IFS= read -r symlink; do
                     if [[ ! -e "$symlink" ]]; then
@@ -443,20 +332,19 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
                 done < <(find "$GLOBAL_CLAUDE_AGENTS" -type l 2>/dev/null)
             fi
         fi
-        
+
         # Link all Claude agent files (excluding README.md)
         while IFS= read -r source; do
             filename=$(basename "$source")
-            
+
             # Skip README files
             if [[ "$filename" == "README.md" ]] || [[ "$filename" == "readme.md" ]]; then
                 continue
             fi
-            
+
             target="$GLOBAL_CLAUDE_AGENTS/$filename"
-            
+
             if [[ "$dry_run" == "true" ]]; then
-                # Check if would need updating
                 if [[ -L "$target" ]]; then
                     current_target=$(readlink "$target")
                     if [[ "$current_target" != "$source" ]]; then
@@ -470,39 +358,35 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
                     claude_agent_count=$((claude_agent_count + 1))
                 fi
             else
-                # Check if symlink exists and points to wrong location
+                # Real symlink creation
+                update_needed=false
                 if [[ -L "$target" ]]; then
                     current_target=$(readlink "$target")
                     if [[ "$current_target" != "$source" ]] || [[ ! -e "$target" ]] || [[ "$force" == "true" ]]; then
+                        update_needed=true
                         rm -f "$target"
-                        if ln -s "$source" "$target"; then
-                            claude_agent_count=$((claude_agent_count + 1))
-                            [[ "$verbose" == "true" ]] && list_item "Claude agent updated: $filename"
-                        else
-                            error "Failed to link Claude agent: $filename"
-                        fi
-                    elif [[ "$verbose" == "true" ]]; then
-                        indent "Claude agent already correct: $filename"
                     fi
                 elif [[ ! -e "$target" ]]; then
-                    # Create new symlink
-                    if ln -s "$source" "$target"; then
+                    update_needed=true
+                elif [[ -e "$target" ]] && [[ ! -L "$target" ]]; then
+                    warning "Regular file exists, skipping: $filename"
+                    continue
+                fi
+
+                if [[ "$update_needed" == "true" ]]; then
+                    if create_application_symlink "$source" "$target" "$filename" "$force" "$dry_run" "$verbose"; then
                         claude_agent_count=$((claude_agent_count + 1))
                         [[ "$verbose" == "true" ]] && list_item "Claude agent linked: $filename"
                     else
                         error "Failed to link Claude agent: $filename"
                     fi
-                elif [[ -e "$target" ]] && [[ ! -L "$target" ]]; then
-                    warning "Regular file exists, skipping: $filename"
+                elif [[ "$verbose" == "true" ]]; then
+                    indent "Claude agent already correct: $filename"
                 fi
             fi
         done < <(find "$CLAUDE_AGENTS_DIR" -name "*.md" 2>/dev/null)
-        
-        if [[ "$dry_run" == "false" ]] && [[ $claude_agent_count -gt 0 ]]; then
-            success "Claude agents linked: $claude_agent_count"
-        fi
     fi
-    
+
     # Handle Claude Desktop MCP configuration symlink
     CLAUDE_DESKTOP_DIR="$HOME/Library/Application Support/Claude"
     if [[ -d "$CLAUDE_DESKTOP_DIR" ]]; then
@@ -511,7 +395,6 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
 
         if [[ -f "$MCP_SERVERS_SOURCE" ]]; then
             if [[ "$dry_run" == "true" ]]; then
-                # Check if would need updating
                 if [[ -L "$CLAUDE_DESKTOP_CONFIG" ]]; then
                     current_target=$(readlink "$CLAUDE_DESKTOP_CONFIG")
                     if [[ "$current_target" != "$MCP_SERVERS_SOURCE" ]]; then
@@ -523,22 +406,7 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
                     info "[dry-run] Would create Claude Desktop MCP config symlink"
                 fi
             else
-                # Check if symlink exists and points to wrong location
-                if [[ -L "$CLAUDE_DESKTOP_CONFIG" ]]; then
-                    current_target=$(readlink "$CLAUDE_DESKTOP_CONFIG")
-                    if [[ "$current_target" != "$MCP_SERVERS_SOURCE" ]] || [[ "$force" == "true" ]]; then
-                        ln -sf "$MCP_SERVERS_SOURCE" "$CLAUDE_DESKTOP_CONFIG"
-                        [[ "$verbose" == "true" ]] && success "Claude Desktop MCP config updated"
-                    elif [[ "$verbose" == "true" ]]; then
-                        indent "Claude Desktop MCP config already correct"
-                    fi
-                elif [[ ! -e "$CLAUDE_DESKTOP_CONFIG" ]]; then
-                    # Create new symlink
-                    ln -sf "$MCP_SERVERS_SOURCE" "$CLAUDE_DESKTOP_CONFIG"
-                    [[ "$verbose" == "true" ]] && success "Claude Desktop MCP config linked"
-                elif [[ -e "$CLAUDE_DESKTOP_CONFIG" ]] && [[ ! -L "$CLAUDE_DESKTOP_CONFIG" ]]; then
-                    warning "Claude Desktop config exists as regular file, skipping MCP link"
-                fi
+                create_application_symlink "$MCP_SERVERS_SOURCE" "$CLAUDE_DESKTOP_CONFIG" "Claude Desktop MCP config" "$force" "$dry_run" "$verbose"
             fi
         fi
     fi
@@ -552,7 +420,6 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
             subheader "MCP Server Sync"
             progress "Syncing MCP servers to Claude Code"
 
-            # Run the MCP setup script with suppressed output unless verbose
             if [[ "$verbose" == "true" ]]; then
                 if "$MCP_SETUP_SCRIPT"; then
                     success "MCP servers synced successfully"
@@ -560,7 +427,6 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
                     warning "MCP server sync completed with some errors"
                 fi
             else
-                # Capture output to only show on error
                 if MCP_OUTPUT=$("$MCP_SETUP_SCRIPT" 2>&1); then
                     success "MCP servers synced successfully"
                 else
@@ -581,11 +447,12 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
     fi
 fi
 
-# Summary
+# Summary (counts from symlink.sh library + Claude-specific counts)
 if [[ "$dry_run" == "false" ]]; then
     blank
-    summary "Relink" $((public_count + local_count + claude_count + claude_global_count + claude_agent_count)) 0 0
-    
+    total_count=$((public_count + local_count + claude_count + claude_global_count + claude_agent_count))
+    summary "Relink" $total_count 0 0
+
     if [[ $skip_count -gt 0 ]]; then
         info "Skipped $skip_count public configs (have local overrides)"
     fi

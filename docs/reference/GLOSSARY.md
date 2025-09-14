@@ -49,6 +49,50 @@ Pattern of checking for dependencies and gracefully handling missing tools or co
 Ability to add or remove microdots without system restart or reconfiguration.
 - **Mechanism**: Filesystem-based discovery patterns
 
+### **Three-Tier Symlink Architecture**
+Hierarchical system for all symlink creation ensuring consistency and single source of truth.
+- **Layer 1**: High-level orchestration functions (`create_all_symlinks_with_precedence`)
+- **Layer 2**: Specialized domain-specific functions (infrastructure, bootstrap, application, command)
+- **Layer 3**: Single source of truth (`_create_symlink_raw` - ONLY function with `ln -s`)
+- **File Reference**: [IMPLEMENTATION.md](IMPLEMENTATION.md#symlink-architecture)
+
+### **Single Source of Truth (Symlinks)**
+Architectural principle where only `_create_symlink_raw()` is allowed to call `ln -s` directly.
+- **Location**: `core/lib/symlink.sh` line 632
+- **Purpose**: Ensures consistent error handling, logging, and command substitution safety
+- **Rule**: ALL other symlink creation must use appropriate Layer 1 or Layer 2 functions
+- **Violation**: Using direct `ln -s` calls bypasses architecture and is forbidden
+
+### **_create_symlink_raw()**
+The ONLY function in the entire codebase allowed to call `ln -s` directly.
+- **Parameters**: `source`, `target`, `force`, `allow_existing`
+- **Purpose**: Low-level symlink creation with unified error handling
+- **Location**: `core/lib/symlink.sh` line 590
+- **Critical Rule**: No other function may call `ln -s`
+
+### **Symlink Specialized Functions (Layer 2)**
+Domain-specific symlink creation functions that delegate to `_create_symlink_raw()`:
+
+#### **create_infrastructure_symlink()**
+Creates dotlocal infrastructure symlinks (core→~/.dotfiles/core, docs→~/.dotfiles/docs)
+- **Usage**: Infrastructure sharing between public and private repos
+- **Parameters**: `source`, `target`, `name`, `force`, `verbose`
+
+#### **create_bootstrap_symlink()**
+Minimal symlink creation for early bootstrap setup
+- **Usage**: Initial system configuration during `dots bootstrap`
+- **Parameters**: `source`, `target`, `name`, `skip_existing`
+
+#### **create_application_symlink()**
+Specialized for application-specific configurations (Claude Desktop, MCP configs)
+- **Usage**: Application installers and complex configurations
+- **Parameters**: `source`, `target`, `app_name`, `force`, `dry_run`, `verbose`
+
+#### **create_command_symlink()**
+Creates symlinks for command-line tools (bin/dots, executables)
+- **Usage**: Command installation and PATH integration
+- **Parameters**: `source`, `target`, `command_name`, `force`
+
 ---
 
 ## Environment Variables

@@ -395,8 +395,21 @@ When building new microdots:
 1. **Follow self-containment** - Each microdot works independently
 2. **Use defensive programming** - Check dependencies before configuring
 3. **Follow naming conventions** - Enable automatic discovery
-4. **Add tests** - Verify portability and independence
-5. **Document patterns** - Help others understand the approach
+4. **Use symlink.sh library** - Never call `ln -s` directly, use appropriate specialized functions
+5. **Add tests** - Verify portability and independence
+6. **Document patterns** - Help others understand the approach
+
+### Symlink Architecture
+
+The system uses a **Three-Tier Symlink Architecture** for consistency:
+
+- **NEVER use direct `ln -s`** - Use `core/lib/symlink.sh` library functions
+- **Infrastructure**: `create_infrastructure_symlink()` for core/docs access
+- **Bootstrap**: `create_bootstrap_symlink()` for early setup
+- **Applications**: `create_application_symlink()` for app configs
+- **Commands**: `create_command_symlink()` for CLI tools
+
+Only `_create_symlink_raw()` is allowed to call `ln -s` - this ensures consistent error handling and command substitution safety.
 
 ```bash
 # Test your contributions

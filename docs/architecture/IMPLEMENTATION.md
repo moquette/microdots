@@ -73,6 +73,136 @@ core/
 - **`ui.sh`**: Unified UI library for consistent output formatting
 - **`validate-config.sh`**: Configuration file safety validation
 
+## Symlink Architecture
+
+### Three-Tier Symlink Architecture (Single Source of Truth)
+
+The Microdots system implements a sophisticated three-tier architecture for all symlink creation, ensuring consistency, reliability, and maintainability across the entire system.
+
+```
+Layer 1: High-Level Orchestration
+├── create_all_symlinks_with_precedence()    # Main entry point with precedence
+├── create_symlink_with_precedence()         # Individual symlinks with precedence
+└── create_subdirectory_symlinks()           # Directory pattern support
+
+Layer 2: Specialized Functions
+├── create_infrastructure_symlink()          # Dotlocal infrastructure symlinks
+├── create_bootstrap_symlink()               # Bootstrap setup (minimal)
+├── create_application_symlink()             # Application configs (Claude Desktop)
+└── create_command_symlink()                 # Command line tools (bin/dots)
+
+Layer 3: Low-Level Implementation (CRITICAL)
+└── _create_symlink_raw()                    # ONLY function allowed to call ln -s
+```
+
+#### **CRITICAL ARCHITECTURAL RULE**
+
+**Only `_create_symlink_raw()` may call `ln -s` directly. This is the single source of truth for all symlink creation.**
+
+All other code in the system MUST use the appropriate Layer 1 or Layer 2 function. This ensures:
+- Consistent error handling across all symlinks
+- Uniform logging and debugging output
+- Command substitution safety (debug output to stderr)
+- Centralized maintenance and bug fixes
+- Proper precedence handling for dotlocal system
+
+#### Layer 1: High-Level Functions
+
+**`create_all_symlinks_with_precedence(dotfiles_dir, local_dir, is_dry_run, force)`**
+- Main orchestration function for the entire symlink system
+- Implements two-phase creation: public configs first, local overrides second
+- Handles precedence where local configurations always win
+- Used by: `dots relink`, `dots bootstrap --install`
+
+**`create_symlink_with_precedence(source, target, is_dry_run, force)`**
+- Individual symlink creation with precedence awareness
+- Handles existing file conflicts
+- Supports dry-run mode for previewing changes
+- Used by: High-level orchestration functions
+
+**`create_subdirectory_symlinks(base_source, base_target, force, is_dry_run)`**
+- Special handling for subdirectory patterns (e.g., config.symlink/atuin/)
+- Maintains directory structure while creating individual symlinks
+- Essential for complex application configurations
+
+#### Layer 2: Specialized Functions
+
+**`create_infrastructure_symlink(source, target, name, force, verbose)`**
+- Creates the 6 infrastructure symlinks in dotlocal system
+- Handles: core→~/.dotfiles/core, docs→~/.dotfiles/docs, etc.
+- Allows existing targets (infrastructure sharing is intentional)
+- Used by: `setup_dotlocal_infrastructure()` in paths.sh
+
+**`create_bootstrap_symlink(source, target, name, skip_existing)`**
+- Minimal function for early bootstrap setup
+- Can optionally skip existing files to avoid conflicts
+- Provides simple success/error feedback
+- Used by: `dots bootstrap` command
+
+**`create_application_symlink(source, target, app_name, force, dry_run, verbose)`**
+- Specialized for application-specific configurations
+- Handles Claude Desktop configs, MCP server configs, etc.
+- Sophisticated update detection (only recreates when needed)
+- Used by: Application installers and MCP setup
+
+**`create_command_symlink(source, target, command_name, force)`**
+- Creates symlinks for command-line tools
+- Used for bin/dots command installation
+- Handles PATH integration requirements
+- Used by: Command installation scripts
+
+#### Layer 3: Low-Level Implementation
+
+**`_create_symlink_raw(source, target, force, allow_existing)`**
+- **THE ONLY function allowed to call `ln -s`**
+- Handles all error checking and validation
+- Creates parent directories as needed
+- Manages existing target removal when forced
+- Returns consistent exit codes
+- **Line 632 contains the ONLY `ln -s` call in the entire codebase**
+
+### Architectural Benefits
+
+1. **Single Source of Truth**: All symlink creation goes through one validated path
+2. **Consistent Behavior**: Same error handling and logging across all use cases
+3. **Command Substitution Safety**: All functions properly separate debug output (stderr) from return values (stdout)
+4. **Easy Maintenance**: Bug fixes in one place benefit all symlink operations
+5. **Specialized Optimization**: Each Layer 2 function optimized for its specific domain
+
+### Migration from Direct `ln -s` Usage
+
+**Never do this (violates single source of truth):**
+```bash
+# WRONG - Direct symlink creation bypasses architecture
+ln -s "$source" "$target"
+
+# WRONG - Using system ln command
+command ln -s "$source" "$target"
+```
+
+**Always use the appropriate specialized function:**
+```bash
+# CORRECT - Use infrastructure function for dotlocal symlinks
+create_infrastructure_symlink "$source" "$target" "$name" "false" "true"
+
+# CORRECT - Use bootstrap function for early setup
+create_bootstrap_symlink "$source" "$target" "$name" "false"
+
+# CORRECT - Use application function for app configs
+create_application_symlink "$source" "$target" "$app_name" "false" "false" "true"
+
+# CORRECT - Use command function for CLI tools
+create_command_symlink "$source" "$target" "$command_name" "false"
+```
+
+### Architecture Validation
+
+The system's test suite validates this architecture:
+- No direct `ln -s` calls outside of `_create_symlink_raw()`
+- All specialized functions properly delegate to Layer 3
+- Command substitution safety (no stdout contamination)
+- Precedence system works correctly
+
 ## Infrastructure Functions Implementation
 
 ### 5-Level Auto-Discovery System

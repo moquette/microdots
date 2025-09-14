@@ -36,15 +36,11 @@ create_symlink() {
   local src="$1"
   local dst="$2"
   local name="$3"
-  
-  # Remove broken symlinks or existing files
-  if [ -L "$dst" ] || [ -e "$dst" ]; then
-    rm -f "$dst"
-  fi
-  
-  # Create the symlink
-  if ln -sf "$src" "$dst" 2>/dev/null; then
-    success "Linked: $name"
+
+  # Use the symlink library for consistent behavior
+  source "${BASH_SOURCE[0]%/*}/symlink.sh"
+
+  if create_bootstrap_symlink "$src" "$dst" "$name" "false"; then
     return 0
   else
     error "Failed to link: $name"

@@ -170,14 +170,15 @@ setup_dotlocal_infrastructure() {
     # Create .dotlocal symlink in dotfiles directory
     local dotlocal_symlink="$dotfiles_root/.dotlocal"
 
+    # Source symlink library for consistent infrastructure creation
+    source "${BASH_SOURCE[0]%/*}/symlink.sh"
+
     if [[ ! -e "$dotlocal_symlink" ]]; then
-        ln -sfn "$dotlocal_path" "$dotlocal_symlink"
-        [[ "$verbose" == "true" ]] && success "Created .dotlocal symlink → $dotlocal_path" >&2
+        create_infrastructure_symlink "$dotlocal_path" "$dotlocal_symlink" ".dotlocal" "false" "$verbose"
     elif [[ -L "$dotlocal_symlink" ]]; then
         local current_target=$(readlink "$dotlocal_symlink")
         if [[ "$current_target" != "$dotlocal_path" ]] || [[ "$force" == "true" ]]; then
-            ln -sfn "$dotlocal_path" "$dotlocal_symlink"
-            [[ "$verbose" == "true" ]] && success "Updated .dotlocal symlink → $dotlocal_path" >&2
+            create_infrastructure_symlink "$dotlocal_path" "$dotlocal_symlink" ".dotlocal" "true" "$verbose"
         fi
     elif [[ -d "$dotlocal_symlink" ]]; then
         if [[ "$(cd "$dotlocal_symlink" && pwd -P)" != "$(cd "$dotlocal_path" && pwd -P)" ]]; then
@@ -213,19 +214,8 @@ setup_dotlocal_infrastructure() {
             continue
         fi
 
-        # Create or update symlink
-        if [[ ! -e "$symlink_path" ]]; then
-            ln -sfn "$target" "$symlink_path"
-            [[ "$verbose" == "true" ]] && success "Created infrastructure symlink: $name → $target" >&2
-        elif [[ -L "$symlink_path" ]]; then
-            local current_target=$(readlink "$symlink_path")
-            if [[ "$current_target" != "$target" ]] || [[ "$force" == "true" ]]; then
-                ln -sfn "$target" "$symlink_path"
-                [[ "$verbose" == "true" ]] && success "Updated infrastructure symlink: $name → $target" >&2
-            fi
-        else
-            [[ "$verbose" == "true" ]] && warning "$name exists in dotlocal but is not a symlink" >&2
-        fi
+        # Create or update symlink using infrastructure function
+        create_infrastructure_symlink "$target" "$symlink_path" "$name" "$force" "$verbose"
     done
 }
 

@@ -126,8 +126,9 @@ link_file() {
   fi
 
   if [[ "$skip" != "true" ]]; then
-    ln -s "$1" "$2"
-    success "Linked $1 to $2"
+    # Use symlink library for consistent behavior
+    source "$DOTFILES_ROOT/core/lib/symlink.sh"
+    create_bootstrap_symlink "$1" "$2" "$(basename "$2")"
   fi
 }
 
@@ -135,14 +136,11 @@ install_dotfiles() {
   subheader "Symlinks"
   progress "Installing dotfiles symlinks"
 
-  # Create dots command symlink
-  if [ ! -L "$DOTFILES_ROOT/bin/dots" ]; then
-    ln -sf "$DOTFILES_ROOT/core/dots" "$DOTFILES_ROOT/bin/dots"
-    success "Created dots command symlink"
-  fi
-
-  # Source the symlink library for proper precedence handling
+  # Source the symlink library for consistent behavior
   source "$DOTFILES_ROOT/core/lib/symlink.sh"
+
+  # Create dots command symlink
+  create_command_symlink "$DOTFILES_ROOT/core/dots" "$DOTFILES_ROOT/bin/dots" "dots"
 
   # Use the discovered dotlocal path from auto-discovery
   local local_dir="${DISCOVERED_DOTLOCAL_PATH:-}"
@@ -205,8 +203,7 @@ setup_dotlocal_symlink() {
       if [[ "$dry_run" == "true" ]]; then
         info "Would create .dotlocal symlink: .dotlocal → $discovered_path"
       else
-        ln -sfn "$discovered_path" "$dotlocal_symlink"
-        success "Created .dotlocal symlink: .dotlocal → $discovered_path"
+        create_infrastructure_symlink "$discovered_path" "$dotlocal_symlink" ".dotlocal" "false" "true"
       fi
     else
       info ".dotlocal symlink already correct"

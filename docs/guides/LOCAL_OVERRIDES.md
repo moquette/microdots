@@ -375,10 +375,32 @@ bash -c 'source ~/.dotfiles/core/lib/paths.sh && resolve_local_path'
 The implementation consists of:
 
 1. **core/lib/paths.sh** - Path resolution, environment setup, and configuration loading
-2. **core/lib/symlink.sh** - Two-phase symlink creation with precedence
+2. **core/lib/symlink.sh** - Three-Tier Symlink Architecture with single source of truth
 3. **core/lib/common.sh** - Shared utilities and messaging functions
 4. **core/commands/relink** - Recreate all symlinks with local precedence
 5. **core/commands/status** - Show configuration and status
+
+### Symlink Architecture Implementation
+
+The dotlocal system leverages the Three-Tier Symlink Architecture to ensure "local always wins":
+
+**Layer 1: Two-Phase Precedence System**
+- `create_all_symlinks_with_precedence()` orchestrates the entire process
+- Phase 1: Creates public configuration symlinks
+- Phase 2: Overrides with local configurations (local always wins)
+- Used by `dots relink` to maintain precedence
+
+**Layer 2: Infrastructure Integration**
+- `create_infrastructure_symlink()` creates the 6 essential dotlocal infrastructure symlinks
+- Handles: core→~/.dotfiles/core, docs→~/.dotfiles/docs, etc.
+- Allows intentional infrastructure sharing between public and private repos
+- Used by `setup_dotlocal_infrastructure()` for automated infrastructure management
+
+**Layer 3: Single Source of Truth**
+- `_create_symlink_raw()` is the ONLY function allowed to call `ln -s`
+- Ensures consistent error handling across all dotlocal operations
+- Provides command substitution safety (critical for path discovery functions)
+- Centralized maintenance point for all symlink behavior
 
 The system is designed to be:
 - **Simple** - Just symlinks and naming conventions
