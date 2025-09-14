@@ -71,7 +71,6 @@ header() {
     echo ""
     echo "${BOLD}${text}${RESET}"
     echo "${DIM}$(printf '%.0s─' {1..60})${RESET}"
-    echo ""
 }
 
 # Sub-header (minor sections)
