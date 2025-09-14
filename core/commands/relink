@@ -115,8 +115,8 @@ subheader "Dotlocal Setup"
 progress "Auto-discovering local configuration directory"
 
 # Use the comprehensive path resolution
-local discovered_path=$(resolve_dotlocal_path "$DOTFILES_ROOT" "false" "$verbose")
-local discovery_method=$(get_dotlocal_discovery_method)
+discovered_path=$(resolve_dotlocal_path "$DOTFILES_ROOT" "false" "$verbose")
+discovery_method=$(get_dotlocal_discovery_method)
 
 if [[ -n "$discovered_path" ]]; then
     if [[ "$dry_run" == "true" ]]; then
@@ -508,7 +508,7 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
     if [[ -d "$CLAUDE_DESKTOP_DIR" ]]; then
         MCP_SERVERS_SOURCE="$discovered_path/claude/mcp/servers.json"
         CLAUDE_DESKTOP_CONFIG="$CLAUDE_DESKTOP_DIR/claude_desktop_config.json"
-        
+
         if [[ -f "$MCP_SERVERS_SOURCE" ]]; then
             if [[ "$dry_run" == "true" ]]; then
                 # Check if would need updating
@@ -540,6 +540,43 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
                     warning "Claude Desktop config exists as regular file, skipping MCP link"
                 fi
             fi
+        fi
+    fi
+
+    # Sync MCP servers to Claude Code global configuration
+    MCP_SETUP_SCRIPT="$discovered_path/claude/mcp/mcp-setup-global"
+    if [[ -f "$MCP_SETUP_SCRIPT" ]] && [[ -x "$MCP_SETUP_SCRIPT" ]]; then
+        if [[ "$dry_run" == "true" ]]; then
+            info "[dry-run] Would sync MCP servers to Claude Code global configuration"
+        else
+            subheader "MCP Server Sync"
+            progress "Syncing MCP servers to Claude Code"
+
+            # Run the MCP setup script with suppressed output unless verbose
+            if [[ "$verbose" == "true" ]]; then
+                if "$MCP_SETUP_SCRIPT"; then
+                    success "MCP servers synced successfully"
+                else
+                    warning "MCP server sync completed with some errors"
+                fi
+            else
+                # Capture output to only show on error
+                if MCP_OUTPUT=$("$MCP_SETUP_SCRIPT" 2>&1); then
+                    success "MCP servers synced successfully"
+                else
+                    warning "MCP server sync completed with some errors"
+                    if [[ -n "$MCP_OUTPUT" ]]; then
+                        echo "$MCP_OUTPUT" | while IFS= read -r line; do
+                            indent "$line"
+                        done
+                    fi
+                fi
+            fi
+        fi
+    elif [[ -f "$discovered_path/claude/mcp/servers.json" ]]; then
+        if [[ "$dry_run" == "false" ]]; then
+            info "MCP servers.json found but mcp-setup-global script not available"
+            indent "Run manually: $discovered_path/claude/mcp/mcp-setup-global"
         fi
     fi
 fi
