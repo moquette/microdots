@@ -46,7 +46,55 @@ This dotfiles repository implements a **dotlocal system** that elegantly separat
 
 ## How It Works
 
-### 1. Two-Layer Configuration
+### 1. Five-Level Auto-Discovery
+
+The system uses a sophisticated 5-level precedence hierarchy to automatically discover your dotlocal configuration:
+
+**Level 1: Explicit Configuration** (Highest Priority)
+- Checks `dotfiles.conf` for `DOTLOCAL` variable
+- User explicitly configured path takes absolute precedence
+
+**Level 2: Existing Symlink**
+- Checks for `~/.dotfiles/.dotlocal` symlink
+- Created automatically by bootstrap or cloud setup
+
+**Level 3: Existing Directory**
+- Checks for `~/.dotfiles/.dotlocal` directory
+- Local directory within dotfiles repository
+
+**Level 4: Standard Location**
+- Checks for `~/.dotlocal` (default hidden directory in home)
+- Created automatically if nothing else found
+
+**Level 5: Cloud Storage Auto-Discovery** (Lowest Priority)
+- Automatically scans common cloud locations:
+  - iCloud Drive (`~/Library/Mobile Documents/com~apple~CloudDocs/Dotlocal`)
+  - Dropbox (`~/Dropbox/Dotlocal`)
+  - Google Drive (`~/Google Drive/Dotlocal`)
+  - OneDrive (`~/OneDrive/Dotlocal`)
+  - Network volumes (`/Volumes/*/Dotlocal`)
+
+### 2. Infrastructure Symlinks System
+
+Once dotlocal is discovered, the system automatically creates **6 infrastructure symlinks** that provide essential shared access:
+
+```bash
+~/.dotlocal/
+├── core → ~/.dotfiles/core                    # UI library and utilities
+├── docs → ~/.dotfiles/docs                    # Documentation directory
+├── MICRODOTS.md → ~/.dotfiles/MICRODOTS.md    # Architecture guide
+├── CLAUDE.md → ~/.dotfiles/CLAUDE.md          # AI agent configuration
+├── TASKS.md → ~/.dotfiles/TASKS.md            # Project tasks
+└── COMPLIANCE.md → ~/.dotfiles/docs/COMPLIANCE.md  # Compliance documentation
+```
+
+These symlinks are **acceptable infrastructure dependencies** because they provide:
+- Documentation access for understanding the system
+- UI library for consistent tool output
+- Development utilities and shared infrastructure
+- They do NOT create functional coupling between microdots
+
+### 3. Two-Layer Configuration
 
 ```
 ~/.dotfiles/          # Public (committed to git)
@@ -60,13 +108,22 @@ This dotfiles repository implements a **dotlocal system** that elegantly separat
 └── localrc.symlink  # Your secrets/API keys
 ```
 
-### 2. Precedence System
+### 2. Precedence System - 5-Level Auto-Discovery
 
-The system checks for local configurations in this order:
+The system uses intelligent 5-level auto-discovery that's now **production-ready** and thoroughly tested:
+
 1. **dotfiles.conf** - Explicit configuration (highest priority)
-2. **~/.dotfiles/local** - Symlink to your local folder
-3. **~/.dotfiles/local** - Regular directory
-4. **~/.dotlocal** - Hidden directory in home
+2. **~/.dotfiles/.dotlocal** - Symlink to your local folder
+3. **~/.dotfiles/.dotlocal** - Regular directory
+4. **~/.dotlocal** - Hidden directory in home (default)
+5. **Cloud storage** - Auto-discovered locations:
+   - `~/Library/Mobile Documents/com~apple~CloudDocs/Dotlocal` (iCloud)
+   - `~/Dropbox/Dotlocal`
+   - `~/Google Drive/Dotlocal`
+   - `~/OneDrive/Dotlocal`
+   - `/Volumes/*/Dotlocal` (Network drives)
+
+**✅ Recent Fix**: Resolved critical bootstrap bug where debug output contaminated command substitution, causing filesystem corruption. The auto-discovery system now provides clean output and reliable symlink creation.
 
 ### 3. Symlink Override Mechanism
 
@@ -125,6 +182,20 @@ Options:
 - `--dry-run` - Preview changes without applying
 - `--force` - Force overwrite existing files
 - `--clean` - Clean broken symlinks first
+
+### `dots repair-infrastructure`
+Validates and repairs infrastructure symlinks in dotlocal. These symlinks provide access to shared infrastructure and documentation.
+
+Options:
+- `-p, --path PATH` - Specify dotlocal path (auto-discovered if not provided)
+- `-q, --quiet` - Suppress verbose output
+- `-h, --help` - Show help message
+
+What it repairs:
+- Missing infrastructure symlinks
+- Broken symlinks (pointing to non-existent targets)
+- Incorrect symlinks (pointing to wrong locations)
+- Conflicting non-symlinks (backs up and replaces)
 
 ## Configuration File
 
@@ -239,28 +310,64 @@ dots relink
 
 ## Troubleshooting
 
+### Critical Fix Applied ✅
+**Issue Resolved**: Fixed critical bootstrap bug where debug output contaminated command substitution, causing:
+- Symlinks with debug text in paths instead of actual directories
+- Garbage directories named after debug messages
+- Complete filesystem corruption requiring manual recovery
+
+**Solution**: All debug output in `core/lib/paths.sh` now redirects to stderr (`>&2`), ensuring command substitution returns clean paths only.
+
 ### Local configs not applying?
 ```bash
-# Check configuration
-dots status
+# Check configuration and auto-discovery
+dots status --verbose           # See full discovery process
 
 # Verify local path exists
 ls -la ~/.dotlocal
 
-# Force relink
-dots relink --force
+# Test the discovery system
+bash -c 'source ~/.dotfiles/core/lib/paths.sh && resolve_local_path'
+
+# Force relink with clean symlinks
+dots relink --clean --force
 ```
 
-### Broken symlinks?
+### Broken or corrupted symlinks?
 ```bash
-# Clean and relink
+# Clean up broken symlinks and recreate
 dots relink --clean
+
+# Check for corrupted paths (should show clean directories only)
+ls -la ~ | grep -E "›|Starting|discovery"
+
+# Manual cleanup if needed
+find ~ -maxdepth 1 -type l ! -exec test -e {} \; -delete
+```
+
+### Bootstrap recovery after corruption?
+```bash
+# Safe recovery steps
+cd ~/.dotfiles
+git status                      # Check repository health
+dots bootstrap --force         # Recreate with fixed bootstrap
+dots status --verbose          # Verify clean discovery
 ```
 
 ### Want to see what's managed?
 ```bash
-# Show all symlinks
+# Show all symlinks and discovery process
 dots status --symlinks
+dots status --verbose          # Show auto-discovery details
+```
+
+### Debugging auto-discovery
+```bash
+# Test discovery system manually
+bash -c 'source ~/.dotfiles/core/lib/paths.sh && resolve_local_path'
+
+# Should return clean path only, debug info goes to stderr
+# If you see "› Starting..." mixed with the path, the bug still exists
 ```
 
 ## Architecture Details

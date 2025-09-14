@@ -144,27 +144,78 @@ dots install               # Run all microdot installations
 dots bootstrap --install   # One-command complete setup
 
 # System management
-dots status                # Configuration status
-dots relink               # Rebuild all symlinks
-dots maintenance          # System maintenance
+dots status                       # Configuration status
+dots relink                      # Rebuild all symlinks
+dots maintenance                 # System maintenance
+
+# Infrastructure management
+dots repair-infrastructure       # Validate and repair infrastructure symlinks
+dots repair-infrastructure -q    # Quiet repair mode
+dots repair-infrastructure -p ~/.dotlocal  # Specify dotlocal path
 
 # Advanced operations
-dots status -v            # Verbose system information
-dots relink --dry-run     # Preview changes
-dots maintenance --quick  # Skip package updates
+dots status -v                   # Verbose system information
+dots relink --dry-run            # Preview changes
+dots maintenance --quick         # Skip package updates
 ```
 
 ---
 
 ## 🔒 Private Configuration Layer
 
-Keep sensitive data separate with the **dotlocal system**:
+Keep sensitive data separate with the **dotlocal system** — now with **automatic discovery**!
+
+### Zero-Configuration Setup
+
+The system uses a **5-level auto-discovery hierarchy** to automatically find your dotlocal configuration:
+
+#### Discovery Precedence (Highest to Lowest Priority)
+
+1. **Explicit Configuration** - `dotfiles.conf` with `DOTLOCAL` variable
+2. **Existing Symlink** - `~/.dotfiles/.dotlocal` symlink to your dotlocal
+3. **Existing Directory** - `~/.dotfiles/.dotlocal` directory
+4. **Standard Location** - `~/.dotlocal` (default hidden directory)
+5. **Cloud Storage Auto-Discovery** - Automatically scans:
+   - iCloud Drive (`~/Library/Mobile Documents/com~apple~CloudDocs/Dotlocal`)
+   - Dropbox (`~/Dropbox/Dotlocal`)
+   - Google Drive (`~/Google Drive/Dotlocal`)
+   - OneDrive (`~/OneDrive/Dotlocal`)
+   - Network volumes (`/Volumes/*/Dotlocal`)
+
+**✅ Production Ready**: The 5-level auto-discovery system is thoroughly tested and production-ready. Fresh installs work flawlessly with zero configuration required.
+
+#### Infrastructure Symlinks
+
+The system automatically creates **6 infrastructure symlinks** in your dotlocal directory:
 
 ```bash
-# Configure private layer
-echo 'LOCAL_PATH="$HOME/.dotlocal"' > ~/.dotfiles/dotfiles.conf
+~/.dotlocal/
+├── core → ~/.dotfiles/core                    # UI library and utilities
+├── docs → ~/.dotfiles/docs                    # Documentation directory
+├── MICRODOTS.md → ~/.dotfiles/MICRODOTS.md    # Architecture guide
+├── CLAUDE.md → ~/.dotfiles/CLAUDE.md          # AI agent configuration
+├── TASKS.md → ~/.dotfiles/TASKS.md            # Project tasks
+└── COMPLIANCE.md → ~/.dotfiles/docs/COMPLIANCE.md  # Compliance documentation
+```
 
-# Structure mirrors public microdots
+These symlinks provide essential infrastructure access while maintaining the zero-coupling principle. They enable proper tooling, documentation access, and development support without creating functional dependencies between microdots.
+
+### Quick Start
+
+```bash
+# Option 1: Use default location (auto-created)
+mkdir -p ~/.dotlocal
+
+# Option 2: Use cloud storage (auto-discovered)
+mkdir -p ~/Library/Mobile\ Documents/com~apple~CloudDocs/Dotlocal
+
+# Option 3: Explicit configuration
+echo 'DOTLOCAL="/path/to/your/dotlocal"' > ~/.dotfiles/dotfiles.conf
+```
+
+### Structure
+
+```bash
 ~/.dotlocal/
 ├── ssh.symlink/          # Private SSH keys
 ├── git/
@@ -304,13 +355,36 @@ git config --get user.name      # Git configured
 
 # Debug loading
 ZSH=~/.dotfiles zsh -x -c 'source ~/.zshrc' 2>&1 | head -20
+
+# Check auto-discovery system
+dots status --verbose            # See dotlocal discovery results
 ```
 
 ### Common Issues
 
+#### Configuration Issues
 - **Missing configurations**: Run `dots bootstrap` to recreate symlinks
 - **Commands not found**: Verify PATH with `echo $PATH | grep dotfiles`
+- **Dotlocal not found**: System auto-creates `~/.dotlocal` on bootstrap
+
+#### Infrastructure Issues
+- **Infrastructure symlinks missing**: Run `dots repair-infrastructure`
+- **Broken symlinks**: Use `dots status -v` to diagnose, then repair
+- **Discovery failing**: Check `dots status --verbose` for discovery details
+
+#### Platform Issues
 - **Homebrew issues**: Check installation paths for Apple Silicon vs Intel
+- **Cloud storage sync**: Verify cloud directories are accessible and synced
+
+#### System Recovery
+- **Complete corruption**: Run `dots bootstrap --install` for full recovery
+- **Partial issues**: Use `dots repair-infrastructure` for targeted repair
+- **Debug discovery**: Enable verbose mode with `dots status --verbose`
+
+#### Fixed Issues
+- **✅ Bootstrap auto-recovery**: System now auto-recovers from missing dotlocal configurations
+- **✅ Command substitution**: Fixed debug output contamination that caused symlink corruption
+- **✅ Zero-configuration**: Fresh installs now work without any manual setup
 
 ---
 

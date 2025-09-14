@@ -256,6 +256,66 @@ Key variables used throughout:
 - Configuration files validated before sourcing
 - Sensitive data kept in `.dotlocal/` (not committed)
 
+## Critical Development Standards
+
+### ⚠️ COMMAND SUBSTITUTION SAFETY (CRITICAL)
+**After resolving a major filesystem corruption bug, these patterns are MANDATORY:**
+
+```bash
+# ✅ CORRECT: Debug output to stderr in command substitution contexts
+resolve_local_path() {
+  echo "› Starting discovery..." >&2  # To stderr - won't contaminate output
+  echo "/path/to/local"               # Clean return value only
+}
+
+# ❌ WRONG: Debug output to stdout
+resolve_local_path() {
+  echo "› Starting discovery..."      # Contaminates command substitution
+  echo "/path/to/local"               # Both go to stdout = broken paths
+}
+
+# Usage
+local_path=$(resolve_local_path)      # Gets clean path, not debug text
+```
+
+**Why This Matters**: Command substitution captures ALL stdout. Debug messages mixed with return values create:
+- Symlinks with debug text in paths (`~/.zshrc -> "› Debug message/real/path"`)
+- Garbage directories named after debug output
+- Complete filesystem corruption requiring manual recovery
+
+### 🔗 INFRASTRUCTURE SYMLINKS (REQUIRED)
+
+The dotlocal system automatically creates 6 infrastructure symlinks that provide essential shared access:
+
+```bash
+~/.dotlocal/
+├── core → ~/.dotfiles/core                    # UI library and utilities
+├── docs → ~/.dotfiles/docs                    # Documentation directory
+├── MICRODOTS.md → ~/.dotfiles/MICRODOTS.md    # Architecture guide
+├── CLAUDE.md → ~/.dotfiles/CLAUDE.md          # AI agent configuration
+├── TASKS.md → ~/.dotfiles/TASKS.md            # Project tasks
+└── COMPLIANCE.md → ~/.dotfiles/docs/COMPLIANCE.md  # Compliance documentation
+```
+
+**These are the ONLY acceptable cross-repository dependencies** because they provide:
+- Infrastructure access (UI library, utilities)
+- Documentation access (essential for understanding the system)
+- Development tooling (shared functions, validation)
+- They do NOT create functional coupling between microdots
+
+**Key Functions for Infrastructure Management:**
+- `setup_dotlocal_infrastructure()` - Creates/manages all 6 symlinks
+- `validate_infrastructure_symlinks()` - Health checking (returns issue count)
+- `repair_infrastructure()` - Automatic repair workflow
+- Command: `dots repair-infrastructure` - User-facing repair command
+
+### 🛡️ Mandatory Patterns for Library Functions
+
+1. **Always redirect debug output to stderr in functions used with command substitution**
+2. **Separate concerns**: informational output (>&2) vs return values (stdout)
+3. **Test command substitution**: `result=$(your_function)` should return clean values only
+4. **Use comprehensive error handling** with proper exit codes
+
 ## Important Patterns to Maintain
 
 1. **Always use defensive programming** - Check before configuring
@@ -265,6 +325,7 @@ Key variables used throughout:
 5. **Use UI library** - Source `core/lib/ui.sh` for consistent output
 6. **Preserve loading order** - path → config → compinit → completions
 7. **Use DOTLOCAL variable** - Not LOCAL_DOTS or LOCAL_PATH
+8. **CRITICAL: Redirect debug output to stderr in command substitution contexts** - Prevents filesystem corruption
 
 ## Known Issues and Workarounds
 

@@ -143,78 +143,81 @@ install_dotfiles() {
 
   # Source the symlink library for proper precedence handling
   source "$DOTFILES_ROOT/core/lib/symlink.sh"
-  
-  # Load DOTLOCAL from dotfiles.conf if it exists
-  local local_dir=""
-  if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+
+  # Use the discovered dotlocal path from auto-discovery
+  local local_dir="${DISCOVERED_DOTLOCAL_PATH:-}"
+
+  # If auto-discovery didn't run or didn't find anything, try fallback
+  if [[ -z "$local_dir" ]] && [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     # Source only variable assignments, not commands
     eval "$(grep '^DOTLOCAL=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
-    
+
     # Expand the path to handle tilde and variables
     if [[ -n "${DOTLOCAL:-}" ]]; then
       local_dir=$(expand_path "$DOTLOCAL")
     fi
   fi
-  
+
+  # Report what we're using
+  if [[ -n "$local_dir" ]]; then
+    info "Using local configuration directory: $local_dir"
+  else
+    info "No local configuration directory found - using public configs only"
+  fi
+
   # Use the proper two-phase symlink creation with precedence
   # This will handle both public and local symlinks correctly
   create_all_symlinks_with_precedence "$DOTFILES_ROOT" "$local_dir" "false" "false"
 }
 
 setup_dotlocal_symlink() {
-  # Check if dotfiles.conf exists and has DOTLOCAL set
-  if [ -f "$DOTFILES_ROOT/dotfiles.conf" ]; then
-    # Source the config file to get DOTLOCAL
-    source "$DOTFILES_ROOT/dotfiles.conf"
-    
-    if [ -n "${DOTLOCAL:-}" ]; then
-      # Expand tilde in DOTLOCAL path
-      DOTLOCAL_EXPANDED=$(expand_path "${DOTLOCAL:-}")
-      # Create .dotlocal as the primary symlink
-      LOCAL_SYMLINK_PATH="$DOTFILES_ROOT/.dotlocal"
-      
-      # Check if the local dots directory exists
-      if [ -d "$DOTLOCAL_EXPANDED" ]; then
-        # Create symlink if it doesn't exist
-        if [ ! -e "$LOCAL_SYMLINK_PATH" ]; then
-          ln -sfn "$DOTLOCAL_EXPANDED" "$LOCAL_SYMLINK_PATH"
-          success "Created local symlink: $LOCAL_SYMLINK_PATH → ${DOTLOCAL:-}"
-        elif [ -L "$LOCAL_SYMLINK_PATH" ]; then
-          # Update existing symlink if it points to wrong location
-          current_target=$(readlink "$LOCAL_SYMLINK_PATH")
-          if [ "$current_target" != "$DOTLOCAL_EXPANDED" ]; then
-            ln -sfn "$DOTLOCAL_EXPANDED" "$LOCAL_SYMLINK_PATH"
-            success "Updated local symlink: $LOCAL_SYMLINK_PATH → ${DOTLOCAL:-}"
-          else
-            success "Local symlink already configured correctly"
-          fi
-        else
-          warning "$LOCAL_SYMLINK_PATH exists but is not a symlink"
-        fi
-        
-        # Create core symlink in DOTLOCAL pointing back to dotfiles/core
-        CORE_SYMLINK_PATH="$DOTLOCAL_EXPANDED/core"
-        if [ ! -e "$CORE_SYMLINK_PATH" ]; then
-          ln -sfn "$DOTFILES_ROOT/core" "$CORE_SYMLINK_PATH"
-          success "Created core symlink in local: $CORE_SYMLINK_PATH → $DOTFILES_ROOT/core"
-        elif [ -L "$CORE_SYMLINK_PATH" ]; then
-          # Update existing symlink if it points to wrong location
-          current_core_target=$(readlink "$CORE_SYMLINK_PATH")
-          if [ "$current_core_target" != "$DOTFILES_ROOT/core" ]; then
-            ln -sfn "$DOTFILES_ROOT/core" "$CORE_SYMLINK_PATH"
-            success "Updated core symlink in local: $CORE_SYMLINK_PATH → $DOTFILES_ROOT/core"
-          else
-            success "Core symlink in local already configured correctly"
-          fi
-        else
-          warning "$CORE_SYMLINK_PATH exists but is not a symlink"
-        fi
-      else
-        warning "DOTLOCAL is set to '${DOTLOCAL:-}' but directory does not exist"
-        info "Create it with: mkdir -p ${DOTLOCAL:-}"
+  subheader "Dotlocal Auto-Discovery"
+
+  # Source the path resolution library
+  source "$CORE_DIR/lib/paths.sh"
+
+  # Use the comprehensive path resolution with verbose output
+  local discovered_path=$(resolve_dotlocal_path "$DOTFILES_ROOT" "true" "true")
+  local discovery_method=$(get_dotlocal_discovery_method)
+
+  # Report discovery results
+  success "Dotlocal discovery complete"
+  info "  Path: $discovered_path"
+  info "  Method: $discovery_method"
+
+  # Create the .dotlocal symlink if we have a discovered path
+  if [[ -n "$discovered_path" ]]; then
+    local dotlocal_symlink="$DOTFILES_ROOT/.dotlocal"
+
+    # Remove existing symlink if it points to wrong location
+    if [[ -L "$dotlocal_symlink" ]]; then
+      local current_target=$(readlink "$dotlocal_symlink")
+      if [[ "$current_target" != "$discovered_path" ]]; then
+        rm -f "$dotlocal_symlink"
+        info "Removed incorrect .dotlocal symlink"
       fi
+    elif [[ -e "$dotlocal_symlink" ]]; then
+      warning ".dotlocal exists but is not a symlink - skipping"
     fi
+
+    # Create symlink if it doesn't exist
+    if [[ ! -e "$dotlocal_symlink" ]]; then
+      if [[ "$dry_run" == "true" ]]; then
+        info "Would create .dotlocal symlink: .dotlocal → $discovered_path"
+      else
+        ln -sfn "$discovered_path" "$dotlocal_symlink"
+        success "Created .dotlocal symlink: .dotlocal → $discovered_path"
+      fi
+    else
+      info ".dotlocal symlink already correct"
+    fi
+
+    # Also create the core symlink in dotlocal for library access
+    setup_dotlocal_infrastructure "$discovered_path" "$DOTFILES_ROOT"
   fi
+
+  # Export for use by other functions
+  export DISCOVERED_DOTLOCAL_PATH="$discovered_path"
 }
 
 install_homebrew() {

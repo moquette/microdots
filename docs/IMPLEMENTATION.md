@@ -39,22 +39,137 @@ The `core/` directory contains the foundational infrastructure that powers the d
 
 ```
 core/
-├── dots                    # Main CLI wrapper
-├── commands/              # Core commands
-│   ├── bootstrap          # Initial setup
-│   ├── install           # Topic installer
-│   └── update            # System updater
-└── lib/                  # Shared libraries
-    └── common.sh         # Common functions
+├── dots                         # Main CLI wrapper
+├── commands/                   # Core commands
+│   ├── bootstrap              # Initial setup with auto-discovery
+│   ├── install                # Topic installer
+│   ├── repair-infrastructure  # Infrastructure symlink repair
+│   ├── relink                # Symlink recreation
+│   ├── status                # System status and diagnostics
+│   └── maintenance           # System maintenance
+└── lib/                     # Shared libraries
+    ├── common.sh           # Common functions
+    ├── paths.sh            # 5-level auto-discovery system
+    ├── symlink.sh         # Two-phase symlink creation
+    ├── ui.sh              # Unified UI library
+    └── validate-config.sh # Configuration validation
 ```
 
 ### Key Components
 
+#### Command System
 - **`dots`**: The main CLI interface that routes commands to appropriate subcommands
-- **`bootstrap`**: Sets up initial configuration (gitconfig, symlinks, Homebrew)
+- **`bootstrap`**: Enhanced initial setup with 5-level auto-discovery and infrastructure creation
+- **`repair-infrastructure`**: NEW - Validates and repairs infrastructure symlinks
 - **`install`**: Dynamically discovers and runs all topic installers
-- **`update`**: Updates dotfiles, packages, and configurations
+- **`status`**: System diagnostics with verbose auto-discovery reporting
+- **`relink`**: Two-phase symlink creation with local precedence
+- **`maintenance`**: Comprehensive system maintenance and updates
+
+#### Core Libraries
+- **`paths.sh`**: NEW - 5-level dotlocal auto-discovery system with infrastructure management
 - **`common.sh`**: Shared utility functions used across all scripts
+- **`symlink.sh`**: Two-phase symlink creation ensuring local always wins
+- **`ui.sh`**: Unified UI library for consistent output formatting
+- **`validate-config.sh`**: Configuration file safety validation
+
+## Infrastructure Functions Implementation
+
+### 5-Level Auto-Discovery System
+
+The `paths.sh` library implements a sophisticated auto-discovery system with these core functions:
+
+#### `discover_dotlocal_path(dotfiles_root, verbose)`
+**CRITICAL**: Used in command substitution - all debug output goes to stderr
+
+```bash
+# Usage in command substitution (safe)
+discovered_path=$(discover_dotlocal_path "$DOTFILES_ROOT" "true")
+
+# Function ensures clean output - only path to stdout
+# All debug/info messages go to stderr using >&2
+```
+
+**Discovery Levels**:
+1. **dotfiles.conf** - `DOTLOCAL` variable (highest priority)
+2. **Existing symlink** - `~/.dotfiles/.dotlocal` symlink
+3. **Existing directory** - `~/.dotfiles/.dotlocal` directory
+4. **Standard location** - `~/.dotlocal` default
+5. **Cloud auto-discovery** - Scans common cloud storage locations
+
+#### `setup_dotlocal_infrastructure(dotlocal_path, dotfiles_root, force, verbose)`
+Creates and manages the 6 infrastructure symlinks:
+
+```bash
+# Infrastructure symlinks created
+core → ~/.dotfiles/core                    # UI library access
+docs → ~/.dotfiles/docs                    # Documentation directory
+MICRODOTS.md → ~/.dotfiles/MICRODOTS.md    # Architecture guide
+CLAUDE.md → ~/.dotfiles/CLAUDE.md          # AI configuration
+TASKS.md → ~/.dotfiles/TASKS.md            # Project tasks
+COMPLIANCE.md → ~/.dotfiles/docs/COMPLIANCE.md  # Compliance docs
+```
+
+Features:
+- Enhanced target validation (readability checks)
+- Force recreation capability
+- Automatic conflict resolution
+- Detailed operation logging
+
+#### `validate_infrastructure_symlinks(dotlocal_path, dotfiles_root, verbose)`
+Health checking for all infrastructure symlinks:
+
+```bash
+# Returns: 0 if healthy, >0 for number of issues
+issues=0
+validate_infrastructure_symlinks "$dotlocal_path" "$dotfiles_root" "true" || issues=$?
+
+if [[ $issues -eq 0 ]]; then
+    success "All infrastructure healthy"
+else
+    warning "Found $issues infrastructure issues"
+fi
+```
+
+Validation checks:
+- Symlink existence
+- Symlink validity (not broken)
+- Correct target verification
+- Type validation
+
+#### `repair_infrastructure(dotlocal_path, dotfiles_root, verbose)`
+Comprehensive infrastructure repair:
+
+```bash
+# Complete repair workflow:
+# 1. Validate current state
+# 2. Remove broken/incorrect symlinks
+# 3. Backup conflicting files
+# 4. Force recreate all infrastructure
+# 5. Validate repair success
+```
+
+### Critical Command Substitution Safety
+
+⚠️ **MAJOR BUG FIX**: Functions used in command substitution must not contaminate stdout:
+
+**Before (BROKEN - Caused System Corruption)**:
+```bash
+discover_dotlocal_path() {
+    info "Starting discovery..."  # CONTAMINATED stdout
+    echo "$result"                # Result mixed with debug
+}
+```
+
+**After (FIXED)**:
+```bash
+discover_dotlocal_path() {
+    [[ "$verbose" == "true" ]] && info "Starting discovery..." >&2  # Safe - stderr only
+    echo "$result"  # Clean stdout for command substitution
+}
+```
+
+This fix prevents catastrophic system corruption where debug output was interpreted as file paths.
 
 ## Implementation Mechanisms
 

@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+#
+# Repair infrastructure symlinks in dotlocal
+#
+
+set -e
+
+# Get the absolute path to this script's directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CORE_DIR="$(dirname "$SCRIPT_DIR")"
+DOTFILES_ROOT="$(dirname "$CORE_DIR")"
+
+# Source the UI library
+source "$CORE_DIR/lib/ui.sh"
+source "$CORE_DIR/lib/paths.sh"
+
+# Command header
+header "🔧 Infrastructure Repair"
+
+# Parse arguments
+verbose=true
+dotlocal_path=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -q|--quiet)
+      verbose=false
+      shift
+      ;;
+    -p|--path)
+      dotlocal_path="$2"
+      shift 2
+      ;;
+    -h|--help)
+      subheader "Usage"
+      info "dots repair-infrastructure [options]"
+      blank
+      subheader "Options"
+      list_item "-p, --path PATH   Specify dotlocal path"
+      list_item "-q, --quiet       Suppress verbose output"
+      list_item "-h, --help        Show this help message"
+      blank
+      subheader "Description"
+      info "Validates and repairs infrastructure symlinks in dotlocal."
+      info "These symlinks provide access to shared infrastructure:"
+      list_item "core → UI library and utilities"
+      list_item "docs → Documentation directory"
+      list_item "MICRODOTS.md → Architecture guide"
+      list_item "CLAUDE.md → AI agent configuration"
+      list_item "TASKS.md → Project tasks"
+      list_item "COMPLIANCE.md → Compliance documentation"
+      exit 0
+      ;;
+    *)
+      error "Unknown option: $1"
+      info "Use --help for usage information"
+      exit 1
+      ;;
+  esac
+done
+
+# If no path specified, discover it
+if [[ -z "$dotlocal_path" ]]; then
+  dotlocal_path=$(discover_dotlocal_path "$DOTFILES_ROOT" "$verbose")
+  if [[ -z "$dotlocal_path" ]]; then
+    error "No dotlocal directory found"
+    info "Run 'dots bootstrap' to set up dotlocal"
+    exit 1
+  fi
+fi
+
+# Run repair
+repair_infrastructure "$dotlocal_path" "$DOTFILES_ROOT" "$verbose"
+exit_code=$?
+
+if [[ $exit_code -eq 0 ]]; then
+  blank
+  summary "Infrastructure Repair" 1 0 0
+else
+  blank
+  summary "Infrastructure Repair" 0 0 1
+fi
+
+exit $exit_code

@@ -13,8 +13,9 @@ CORE_DIR="$DOTFILES_ROOT/core"
 source "$CORE_DIR/lib/common.sh"
 source "$CORE_DIR/lib/validate-config.sh"
 source "$CORE_DIR/lib/ui.sh"
+source "$CORE_DIR/lib/paths.sh"
 
-# Load DOTLOCAL from dotfiles.conf if it exists
+# Load DOTLOCAL from dotfiles.conf if it exists (for backward compatibility)
 DOTLOCAL=""
 if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     # Source only variable assignments, not commands
@@ -86,45 +87,122 @@ fi
 blank
 subheader "Local Configuration"
 
-# Local directory status
-if [[ -n "$DOTLOCAL" ]]; then
-    # Expand tilde in DOTLOCAL path
-    DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
-    key_value "DOTLOCAL" "$DOTLOCAL"
-    
-    if [[ -d "$DOTLOCAL_EXPANDED" ]]; then
+# Use the new discovery system for comprehensive status
+discovered_path=$(discover_dotlocal_path "$DOTFILES_ROOT" false)
+discovery_method=$(get_dotlocal_discovery_method)
+dotlocal_type=$(get_dotlocal_type "$DOTFILES_ROOT")
+
+if [[ -n "$discovered_path" ]]; then
+    key_value "Path" "$discovered_path"
+    key_value "Discovery Method" "$discovery_method"
+    key_value "Type" "$dotlocal_type"
+
+    if [[ -d "$discovered_path" ]]; then
         key_value "Status" "Active"
+
+        # Count topics in local directory
+        topic_count=0
+        if [[ -d "$discovered_path" ]]; then
+            topic_count=$(find "$discovered_path" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+        fi
+        key_value "Topics" "$topic_count"
+
         if [[ "$verbose" == "true" ]]; then
+            # Show discovery precedence path
+            info "Discovery precedence resolution:"
+
+            # Level 1: dotfiles.conf
+            if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]] && [[ -n "${DOTLOCAL:-}" ]]; then
+                list_item "✓ Level 1 (dotfiles.conf): $DOTLOCAL"
+            else
+                list_item "○ Level 1 (dotfiles.conf): Not found or empty"
+            fi
+
+            # Level 2: existing symlink
+            if [[ -L "$DOTFILES_ROOT/.dotlocal" ]]; then
+                symlink_target=$(readlink "$DOTFILES_ROOT/.dotlocal")
+                list_item "✓ Level 2 (.dotlocal symlink): $symlink_target"
+            else
+                list_item "○ Level 2 (.dotlocal symlink): Not found"
+            fi
+
+            # Level 3: existing directory
+            if [[ -d "$DOTFILES_ROOT/.dotlocal" ]] && [[ ! -L "$DOTFILES_ROOT/.dotlocal" ]]; then
+                list_item "✓ Level 3 (.dotlocal directory): $DOTFILES_ROOT/.dotlocal"
+            else
+                list_item "○ Level 3 (.dotlocal directory): Not found"
+            fi
+
+            # Level 4: standard location
+            if [[ -d "$HOME/.dotlocal" ]]; then
+                list_item "✓ Level 4 (~/.dotlocal): $HOME/.dotlocal"
+            else
+                list_item "○ Level 4 (~/.dotlocal): Not found"
+            fi
+
+            # Level 5: cloud storage
+            cloud_found=false
+            cloud_locations=(
+                "$HOME/Library/Mobile Documents/com~apple~CloudDocs/Dotlocal"
+                "$HOME/Library/Mobile Documents/com~apple~CloudDocs/Dotfiles/dotlocal"
+                "$HOME/Dropbox/Dotlocal"
+                "$HOME/Google Drive/Dotlocal"
+                "$HOME/OneDrive/Dotlocal"
+                "/Volumes/My Shared Files/Dotlocal"
+            )
+
+            for location in "${cloud_locations[@]}"; do
+                if [[ -d "$location" ]]; then
+                    list_item "✓ Level 5 (cloud storage): $location"
+                    cloud_found=true
+                    break
+                fi
+            done
+
+            if [[ "$cloud_found" == "false" ]]; then
+                list_item "○ Level 5 (cloud storage): Not found"
+            fi
+
+            blank
+            info "Using: $discovered_path ($discovery_method)"
+
             # Count symlink files in local
-            local_symlink_count=$(find "$DOTLOCAL_EXPANDED" -name "*.symlink" 2>/dev/null | wc -l | tr -d ' ')
+            local_symlink_count=$(find "$discovered_path" -name "*.symlink" 2>/dev/null | wc -l | tr -d ' ')
             key_value "Symlink files" "$local_symlink_count"
-            
+
             # Check for important local files
             info "Key files:"
-            [[ -f "$DOTLOCAL_EXPANDED/localrc.symlink" ]] && list_item "localrc.symlink"
-            [[ -d "$DOTLOCAL_EXPANDED/shell" ]] && list_item "shell/"
-            [[ -d "$DOTLOCAL_EXPANDED/bin" ]] && list_item "bin/"
-            [[ -d "$DOTLOCAL_EXPANDED/ssh.symlink" ]] && list_item "ssh.symlink/"
-            
+            [[ -f "$discovered_path/localrc.symlink" ]] && list_item "localrc.symlink"
+            [[ -d "$discovered_path/shell" ]] && list_item "shell/"
+            [[ -d "$discovered_path/bin" ]] && list_item "bin/"
+            [[ -d "$discovered_path/ssh.symlink" ]] && list_item "ssh.symlink/"
+
             # Check core symlink
-            if [[ -L "$DOTLOCAL_EXPANDED/core" ]]; then
-                core_target=$(readlink "$DOTLOCAL_EXPANDED/core")
+            if [[ -L "$discovered_path/core" ]]; then
+                core_target=$(readlink "$discovered_path/core")
                 if [[ "$core_target" == "$DOTFILES_ROOT/core" ]]; then
                     list_item "core → $DOTFILES_ROOT/core ✓"
                 else
                     list_item "core → $core_target (incorrect)"
                 fi
-            elif [[ -e "$DOTLOCAL_EXPANDED/core" ]]; then
+            elif [[ -e "$discovered_path/core" ]]; then
                 list_item "core (not a symlink!)"
+            else
+                list_item "core symlink missing (dotlocal scripts won't work)"
             fi
         fi
     else
         key_value "Status" "Directory not found"
-        warning "Local directory configured but does not exist: $DOTLOCAL"
+        warning "Discovered path does not exist: $discovered_path"
     fi
 else
-    key_value "DOTLOCAL" "Not configured"
+    key_value "Path" "Not configured"
     key_value "Status" "Using public configs only"
+
+    if [[ "$verbose" == "true" ]]; then
+        info "No dotlocal directory found via 5-level auto-discovery"
+        info "Run 'dots bootstrap' to create default location"
+    fi
 fi
 
 # Check for symlinks at ~/.dotfiles/.dotlocal and ~/.dotfiles/.local
@@ -176,7 +254,7 @@ if [[ "$show_symlinks" == "true" ]]; then
                 broken_symlink_count=$((broken_symlink_count + 1))
             elif [[ "$target" == *"$DOTFILES_ROOT"* ]]; then
                 public_symlink_count=$((public_symlink_count + 1))
-            elif [[ -n "$DOTLOCAL_EXPANDED" && "$target" == *"$DOTLOCAL_EXPANDED"* ]]; then
+            elif [[ -n "$discovered_path" && "$target" == *"$discovered_path"* ]]; then
                 local_symlink_count=$((local_symlink_count + 1))
             fi
         fi
@@ -313,8 +391,8 @@ fi
 # Summary
 blank
 subheader "Summary"
-if [[ -n "$DOTLOCAL" ]] && [[ -d "$DOTLOCAL_EXPANDED" ]]; then
-    success "Local overrides are ACTIVE from: $DOTLOCAL"
+if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
+    success "Local overrides are ACTIVE from: $discovered_path"
     info "Run 'dots relink' to refresh symlinks with local precedence"
 else
     info "Using public configurations only"

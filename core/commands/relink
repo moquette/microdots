@@ -13,8 +13,9 @@ CORE_DIR="$DOTFILES_ROOT/core"
 # Source libraries
 source "$CORE_DIR/lib/ui.sh"
 source "$CORE_DIR/lib/validate-config.sh"
+source "$CORE_DIR/lib/paths.sh"
 
-# Load DOTLOCAL from dotfiles.conf if it exists
+# Load DOTLOCAL from dotfiles.conf if it exists (for backward compatibility)
 DOTLOCAL=""
 if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
     # Source only variable assignments, not commands
@@ -109,55 +110,27 @@ else
     key_value "DOTLOCAL" "Not configured"
 fi
 
-# Create or update .dotlocal symlink if DOTLOCAL is set
-if [[ -n "$DOTLOCAL" ]]; then
-    # Expand tilde in DOTLOCAL path
-    DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
-    LOCAL_SYMLINK_PATH="$DOTFILES_ROOT/.dotlocal"
-    
+# Auto-discover and set up dotlocal infrastructure
+subheader "Dotlocal Setup"
+progress "Auto-discovering local configuration directory"
+
+# Use the comprehensive path resolution
+local discovered_path=$(resolve_dotlocal_path "$DOTFILES_ROOT" "false" "$verbose")
+local discovery_method=$(get_dotlocal_discovery_method)
+
+if [[ -n "$discovered_path" ]]; then
     if [[ "$dry_run" == "true" ]]; then
-        info "[dry-run] Would create/update .dotlocal symlink → $DOTLOCAL"
+        info "[dry-run] Would use dotlocal path: $discovered_path"
+        info "[dry-run] Discovery method: $discovery_method"
     else
-        # Check if the local dots directory exists
-        if [[ -d "$DOTLOCAL_EXPANDED" ]]; then
-            # Create .dotlocal symlink if it doesn't exist
-            if [ ! -e "$LOCAL_SYMLINK_PATH" ]; then
-                ln -sfn "$DOTLOCAL_EXPANDED" "$LOCAL_SYMLINK_PATH"
-                success "Created .dotlocal symlink → $DOTLOCAL"
-            elif [ -L "$LOCAL_SYMLINK_PATH" ]; then
-                # Update existing symlink if it points to wrong location
-                current_target=$(readlink "$LOCAL_SYMLINK_PATH")
-                if [ "$current_target" != "$DOTLOCAL_EXPANDED" ]; then
-                    ln -sfn "$DOTLOCAL_EXPANDED" "$LOCAL_SYMLINK_PATH"
-                    success "Updated .dotlocal symlink → $DOTLOCAL"
-                else
-                    [[ "$verbose" == "true" ]] && info ".dotlocal symlink already correct"
-                fi
-            else
-                warning "$LOCAL_SYMLINK_PATH exists but is not a symlink"
-            fi
-            
-            
-            # Create/update core symlink in DOTLOCAL pointing back to dotfiles/core
-            CORE_SYMLINK_PATH="$DOTLOCAL_EXPANDED/core"
-            if [ ! -e "$CORE_SYMLINK_PATH" ]; then
-                ln -sfn "$DOTFILES_ROOT/core" "$CORE_SYMLINK_PATH"
-                success "Created core symlink in local: core → $DOTFILES_ROOT/core"
-            elif [ -L "$CORE_SYMLINK_PATH" ]; then
-                # Update existing symlink if it points to wrong location
-                current_core_target=$(readlink "$CORE_SYMLINK_PATH")
-                if [ "$current_core_target" != "$DOTFILES_ROOT/core" ]; then
-                    ln -sfn "$DOTFILES_ROOT/core" "$CORE_SYMLINK_PATH"
-                    success "Updated core symlink in local: core → $DOTFILES_ROOT/core"
-                else
-                    [[ "$verbose" == "true" ]] && info "Core symlink in local already correct"
-                fi
-            else
-                warning "$CORE_SYMLINK_PATH exists but is not a symlink"
-            fi
-        else
-            warning "DOTLOCAL is set but directory does not exist: $DOTLOCAL"
-        fi
+        success "Using dotlocal path: $discovered_path"
+        info "Discovery method: $discovery_method"
+    fi
+else
+    if [[ "$dry_run" == "true" ]]; then
+        info "[dry-run] No dotlocal directory found - would use public configs only"
+    else
+        info "No dotlocal directory found - using public configs only"
     fi
 fi
 
@@ -254,17 +227,13 @@ if [[ -d "$DOTFILES_ROOT" ]]; then
         target=$(get_symlink_target "$source")
         
         # Skip if local version exists (will be handled in phase 2)
-        if [[ -n "$DOTLOCAL" ]]; then
-            # Expand tilde in DOTLOCAL path
-            DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
-            if [[ -d "$DOTLOCAL_EXPANDED" ]]; then
-                relative_path="${source#$DOTFILES_ROOT/}"
-                local_equivalent="$DOTLOCAL_EXPANDED/${relative_path}"
-                if [[ -f "$local_equivalent" ]]; then
-                    skip_count=$((skip_count + 1))
-                    [[ "$verbose" == "true" ]] && indent "Skipped $(basename "$target") (has local override)"
-                    continue
-                fi
+        if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
+            relative_path="${source#$DOTFILES_ROOT/}"
+            local_equivalent="$discovered_path/${relative_path}"
+            if [[ -f "$local_equivalent" ]]; then
+                skip_count=$((skip_count + 1))
+                [[ "$verbose" == "true" ]] && indent "Skipped $(basename "$target") (has local override)"
+                continue
             fi
         fi
         
@@ -277,43 +246,36 @@ fi
 [[ "$dry_run" == "false" ]] && success "Public configurations linked: $public_count"
 
 # Process local configs second (they override)
-if [[ -n "$DOTLOCAL" ]]; then
-    # Expand tilde in DOTLOCAL path
-    DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
-    if [[ -d "$DOTLOCAL_EXPANDED" ]]; then
+if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
     if [[ "$dry_run" == "true" ]]; then
         info "Processing local overrides (dry-run)"
     else
         progress "Processing local overrides"
     fi
-    
+
     while IFS= read -r source; do
         should_exclude "$source" && continue
-        
+
         target=$(get_symlink_target "$source")
         # Force mode for local - they always override
         if create_symlink_ui "$source" "$target" true; then
             local_count=$((local_count + 1))
         fi
-    done < <(find "$DOTLOCAL_EXPANDED" -name "*.symlink" 2>/dev/null)
-    
+    done < <(find "$discovered_path" -name "*.symlink" 2>/dev/null)
+
     [[ "$dry_run" == "false" ]] && success "Local overrides linked: $local_count"
-    else
-        [[ "$dry_run" == "false" ]] && info "Local directory does not exist"
-    fi
 else
-    [[ "$dry_run" == "false" ]] && info "No local folder configured"
+    [[ "$dry_run" == "false" ]] && info "No local directory available for overrides"
 fi
 
 # Process Claude commands, agents, and global files if local directory exists
 claude_count=0
 claude_global_count=0
 claude_agent_count=0
-if [[ -n "$DOTLOCAL" ]]; then
-    DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
-    CLAUDE_COMMANDS_DIR="$DOTLOCAL_EXPANDED/claude/commands"
-    CLAUDE_GLOBAL_DIR="$DOTLOCAL_EXPANDED/claude/global"
-    CLAUDE_AGENTS_DIR="$DOTLOCAL_EXPANDED/claude/agents"
+if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
+    CLAUDE_COMMANDS_DIR="$discovered_path/claude/commands"
+    CLAUDE_GLOBAL_DIR="$discovered_path/claude/global"
+    CLAUDE_AGENTS_DIR="$discovered_path/claude/agents"
     GLOBAL_CLAUDE_DIR="$HOME/.claude/commands"
     GLOBAL_CLAUDE_AGENTS="$HOME/.claude/agents"
     GLOBAL_CLAUDE_ROOT="$HOME/.claude"
@@ -544,7 +506,7 @@ if [[ -n "$DOTLOCAL" ]]; then
     # Handle Claude Desktop MCP configuration symlink
     CLAUDE_DESKTOP_DIR="$HOME/Library/Application Support/Claude"
     if [[ -d "$CLAUDE_DESKTOP_DIR" ]]; then
-        MCP_SERVERS_SOURCE="$DOTLOCAL_EXPANDED/claude/mcp/servers.json"
+        MCP_SERVERS_SOURCE="$discovered_path/claude/mcp/servers.json"
         CLAUDE_DESKTOP_CONFIG="$CLAUDE_DESKTOP_DIR/claude_desktop_config.json"
         
         if [[ -f "$MCP_SERVERS_SOURCE" ]]; then

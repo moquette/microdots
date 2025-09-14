@@ -158,8 +158,23 @@ topic-name/                    # Microdot root (the service boundary)
 3. **All dependencies are checked before use**
 4. **Graceful degradation when tools are missing**
 
-**Exception: Core Library Infrastructure**
-The `core/lib/` directory provides shared infrastructure (UI formatting, common utilities) that all microdots can use. This is the ONLY acceptable cross-microdot dependency as it provides infrastructure, not functionality. This intentional design ensures consistent behavior across the entire system.
+**Exception: Infrastructure Access**
+Two types of infrastructure access are acceptable:
+
+1. **Core Library Access** - The `core/lib/` directory provides shared infrastructure (UI formatting, common utilities) that all microdots can use.
+
+2. **Infrastructure Symlinks** - The dotlocal system creates 6 infrastructure symlinks that provide essential shared access:
+   ```bash
+   ~/.dotlocal/
+   ├── core → ~/.dotfiles/core                    # UI library and utilities
+   ├── docs → ~/.dotfiles/docs                    # Documentation directory
+   ├── MICRODOTS.md → ~/.dotfiles/MICRODOTS.md    # Architecture guide
+   ├── CLAUDE.md → ~/.dotfiles/CLAUDE.md          # AI agent configuration
+   ├── TASKS.md → ~/.dotfiles/TASKS.md            # Project tasks
+   └── COMPLIANCE.md → ~/.dotfiles/docs/COMPLIANCE.md  # Compliance documentation
+   ```
+
+These are acceptable because they provide infrastructure and documentation access, not functional coupling between microdots. This intentional design ensures consistent behavior and proper tooling access across the entire system.
 
 ---
 
@@ -429,7 +444,27 @@ tool init 2>/dev/null || {
 # tool init 2>/dev/null || true  # BAD
 ```
 
-#### 4. Self-Contained Design
+#### 4. Command Substitution Safety (CRITICAL)
+```bash
+# ✅ CORRECT: Debug output to stderr in functions used with command substitution
+detect_tool_path() {
+  echo "› Searching for tool..." >&2  # To stderr - won't contaminate output
+  echo "/usr/local/bin/tool"          # Clean return value only
+}
+
+# ❌ WRONG: Debug output to stdout
+detect_tool_path() {
+  echo "› Searching for tool..."      # Contaminates command substitution
+  echo "/usr/local/bin/tool"          # Both go to stdout = broken paths
+}
+
+# Usage
+tool_path=$(detect_tool_path)         # Gets clean path, not debug text
+```
+
+**Why Critical**: Command substitution captures ALL stdout. Debug messages mixed with return values create corrupted symlinks and filesystem damage. After resolving a major filesystem corruption bug, this pattern is mandatory for all library functions.
+
+#### 5. Self-Contained Design
 ```bash
 # GOOD: Everything in microdot directory
 source "${0:A:h}/lib/helpers.zsh"
@@ -440,7 +475,28 @@ source "$DOTFILES_ROOT/other-tool/lib.zsh"  # Creates coupling!
 
 ### ❌ Anti-Patterns to Avoid
 
-#### 1. Hardcoded Paths
+#### 1. Command Substitution Contamination (CRITICAL)
+```bash
+# CATASTROPHIC: Debug output contaminates command substitution
+my_function() {
+    echo "Debug info"  # Goes to stdout - BREAKS command substitution
+    echo "$result"     # Result contaminated
+}
+
+result=$(my_function)  # result = "Debug info\nactual_result"
+
+# SAFE: All debug output to stderr
+my_function() {
+    echo "Debug info" >&2  # Safe - goes to stderr
+    echo "$result"         # Clean result to stdout
+}
+
+result=$(my_function)  # result = "actual_result" (clean)
+```
+
+⚠️ **This pattern caused catastrophic system corruption** when debug output was interpreted as file paths, breaking symlink creation across the entire system.
+
+#### 2. Hardcoded Paths
 ```bash
 # BAD: User-specific paths
 source "$HOME/.dotfiles/tool/config.zsh"
@@ -449,7 +505,7 @@ source "$HOME/.dotfiles/tool/config.zsh"
 source "${0:A:h}/config.zsh"
 ```
 
-#### 2. Cross-Microdot Dependencies
+#### 3. Cross-Microdot Dependencies
 ```bash
 # BAD: Coupling between microdots
 if [[ -f "$DOTFILES_ROOT/git/functions.zsh" ]]; then
@@ -467,7 +523,7 @@ local_git_helper() {
 source "$DOTFILES_ROOT/core/lib/ui.sh"  # OK - shared infrastructure
 ```
 
-#### 3. Global Namespace Pollution
+#### 4. Global Namespace Pollution
 ```bash
 # BAD: Generic names
 temp_var="something"
