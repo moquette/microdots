@@ -4,9 +4,9 @@
 # This discovers and runs all topic install.sh scripts
 #
 
-# Setup log file (only if not already logging from bootstrap)
+# Setup log file (only if not already logging from bootstrap/setup)
 if [[ -z "${LOG_FILE:-}" ]]; then
-  LOG_FILE=~/Desktop/dots-install.log
+  LOG_FILE=~/Desktop/dotfiles-install.log
   exec > >(tee -a "$LOG_FILE")
   exec 2>&1
 

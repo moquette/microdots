@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 # Setup log file
-LOG_FILE=~/Desktop/dots-bootstrap.log
+LOG_FILE=~/Desktop/dotfiles-install.log
 exec > >(tee -a "$LOG_FILE")
 exec 2>&1
 
 # Log header
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Dotfiles Bootstrap Log"
+echo "Dotfiles Installation Log"
 echo "Date: $(date)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -197,14 +197,22 @@ fi
 # Kill the sudo keep-alive background process quietly
 { kill $SUDO_PID; } 2>/dev/null
 
-# Log footer
+# Simple, clean ending message
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Installation completed at: $(date)"
-if [ -n "$DOTLOCAL" ]; then
-    echo "Local directory: $DOTLOCAL"
-else
-    echo "Local directory: DISABLED"
-fi
-echo "Log saved to: $LOG_FILE"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}✅ Please restart your terminal or run: source ~/.zshrc${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# Log footer (for the log file only)
+{
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "Installation completed at: $(date)"
+  if [ -n "$DOTLOCAL" ]; then
+      echo "Local directory: $DOTLOCAL"
+  else
+      echo "Local directory: DISABLED"
+  fi
+  echo "Log saved to: $LOG_FILE"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+} >> "$LOG_FILE" 2>&1
