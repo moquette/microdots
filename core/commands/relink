@@ -460,8 +460,8 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
     fi
 
     # Sync MCP servers to Claude Code global configuration
-    MCP_SETUP_SCRIPT="$discovered_path/claude/mcp/mcp-setup-global"
-    if [[ -f "$MCP_SETUP_SCRIPT" ]] && [[ -x "$MCP_SETUP_SCRIPT" ]]; then
+    # MCP setup script is installed to PATH by the MCP installer
+    if command -v mcp-setup-global >/dev/null 2>&1; then
         if [[ "$dry_run" == "true" ]]; then
             info "[dry-run] Would sync MCP servers to Claude Code global configuration"
         else
@@ -469,13 +469,13 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
             progress "Syncing MCP servers to Claude Code"
 
             if [[ "$verbose" == "true" ]]; then
-                if "$MCP_SETUP_SCRIPT"; then
+                if mcp-setup-global; then
                     success "MCP servers synced successfully"
                 else
                     warning "MCP server sync completed with some errors"
                 fi
             else
-                if MCP_OUTPUT=$("$MCP_SETUP_SCRIPT" 2>&1); then
+                if MCP_OUTPUT=$(mcp-setup-global 2>&1); then
                     success "MCP servers synced successfully"
                 else
                     warning "MCP server sync completed with some errors"
@@ -489,8 +489,8 @@ if [[ -n "$discovered_path" ]] && [[ -d "$discovered_path" ]]; then
         fi
     elif [[ -f "$discovered_path/claude/mcp/servers.json" ]]; then
         if [[ "$dry_run" == "false" ]]; then
-            info "MCP servers.json found but mcp-setup-global script not available"
-            indent "Run manually: $discovered_path/claude/mcp/mcp-setup-global"
+            info "MCP servers.json found but mcp-setup-global command not available"
+            indent "Install Claude CLI first, then run: mcp-setup-global"
         fi
     fi
 fi
