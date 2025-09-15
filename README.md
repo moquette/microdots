@@ -20,11 +20,23 @@ Welcome to the future of dotfiles.
 
 ## ⚡ Lightning Quick Start
 
-# One command install the microdots system -- follow the prompts
+### Standard Installation (Bootstrap Only)
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/moquette/microdots/main/core/setup)"
 ```
+
+### Full System Provisioning (New Systems)
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/moquette/microdots/main/core/setup)" -- --provision
+```
+
+The `--provision` flag performs complete system setup:
+- ✅ Bootstrap core configuration
+- ✅ Install all tools and dependencies
+- ✅ Run system maintenance
+- ✅ Restart shell automatically
 
 **That's it.** Your development environment is now a distributed system.
 
