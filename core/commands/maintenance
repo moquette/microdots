@@ -190,16 +190,9 @@ sync_repository() {
 run_homebrew_maintenance() {
     subheader "🍺 Homebrew maintenance"
 
-    # Try to find Homebrew in standard locations first
-    if [[ -x "/opt/homebrew/bin/brew" ]]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-    elif [[ -x "/usr/local/bin/brew" ]]; then
-        eval "$(/usr/local/bin/brew shellenv)"
-    fi
-
-    # Now check if brew is available
+    # Check Homebrew availability - environment managed by path.zsh
     if ! command -v brew >/dev/null 2>&1; then
-        error "Homebrew not installed"
+        error "Homebrew not installed or not in PATH"
         return 1
     fi
     

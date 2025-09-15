@@ -117,7 +117,6 @@ discover_dotlocal_path() {
             "$HOME/Dropbox/Dotlocal"
             "$HOME/Google Drive/Dotlocal"
             "$HOME/OneDrive/Dotlocal"
-            "/Volumes/My Shared Files/Dotlocal"
         )
 
         for location in "${cloud_locations[@]}"; do
@@ -223,7 +222,7 @@ setup_dotlocal_infrastructure() {
         fi
 
         # Create or update symlink using infrastructure function
-        create_infrastructure_symlink "$symlink_path" "$target" "$name" "$force" "$verbose"
+        create_infrastructure_symlink "$target" "$symlink_path" "$name" "$force" "$verbose"
     done
 
     # Process optional symlinks
@@ -242,7 +241,7 @@ setup_dotlocal_infrastructure() {
         fi
 
         # Create or update symlink using infrastructure function
-        create_infrastructure_symlink "$symlink_path" "$target" "$name" "$force" "$verbose"
+        create_infrastructure_symlink "$target" "$symlink_path" "$name" "$force" "$verbose"
     done
 }
 

@@ -46,13 +46,9 @@ else
   header "📦 Dotfiles Installation"
 fi
 
-# Setup Homebrew environment if on macOS
+# Homebrew environment is managed by path.zsh - no manual injection needed
+# Check if we're on macOS for Homebrew availability
 if [[ "$(uname -s)" == "Darwin" ]]; then
-  if test -f "/opt/homebrew/bin/brew"; then
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-  elif test -f "/usr/local/bin/brew"; then
-    eval "$(/usr/local/bin/brew shellenv)"
-  fi
   
   # Skip regular Brewfile processing if --apps flag is set
   if [[ "$apps_only" != "true" ]]; then
