@@ -20,16 +20,16 @@ Welcome to the future of dotfiles.
 
 ## ⚡ Lightning Quick Start
 
-### Standard Installation (Bootstrap Only)
+### Standard Installation (Bootstrap)
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/moquette/microdots/main/core/setup)"
 ```
 
-### Full System Provisioning (New Systems)
+### Restart terminal and provision
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/moquette/microdots/main/core/setup)" -- --provision
+dots-provision
 ```
 
 The `--provision` flag performs complete system setup:
