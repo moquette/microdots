@@ -213,43 +213,15 @@ fi
 
 # Final message
 blank
-header "✅ Bootstrap complete!"
+header "✅ Setup Complete!"
 blank
-echo -n "Complete the setup automatically? [Y/n]: "
-read -r auto_provision
-
-case "$(echo "$auto_provision" | tr '[:upper:]' '[:lower:]')" in
-  n|no)
-    blank
-    subheader "Manual next steps"
-    info "  1. Restart your terminal or run: source ~/.zshrc"
-    info "  2. Run: dots provision"
-    ;;
-  *)
-    blank
-    progress "Completing setup automatically..."
-    blank
-
-    # Source the new shell configuration
-    if source ~/.zshrc 2>/dev/null; then
-      success "Shell configuration loaded"
-
-      # Run provision
-      if ~/.dotfiles/core/dots provision; then
-        blank
-        success "🎉 Setup completed successfully!"
-        info "Your dotfiles are ready to use."
-      else
-        blank
-        warning "Provision completed with warnings"
-        info "Run 'dots provision' again to retry any failed steps"
-      fi
-    else
-      warning "Could not auto-load shell config"
-      info "Please restart your terminal and run: dots provision"
-    fi
-    ;;
-esac
+subheader "Next Steps"
+info "  1. Restart your terminal or run: source ~/.zshrc"
+info "  2. Run: dots provision"
+info "  3. Check status with: dots status"
+blank
+success "Your dotfiles bootstrap is ready!"
+info "The provision step will complete the full installation with all dependencies."
 
 # Log footer (for the log file only)
 {
