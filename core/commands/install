@@ -209,6 +209,15 @@ else
   else
     blank
     success "All dotfiles installed successfully!"
+
+    # Run relink to apply final configuration (including MCP servers)
+    blank
+    info "Applying final configuration..."
+    if "$DOTFILES_ROOT/core/commands/relink"; then
+      success "Configuration applied successfully!"
+    else
+      warning "Some configuration steps had warnings. Check above for details."
+    fi
   fi
 fi
 
