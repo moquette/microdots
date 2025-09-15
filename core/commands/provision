@@ -9,8 +9,9 @@
 set -e
 
 # Get the dotfiles root directory
-DOTFILES_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
-CORE_DIR="$DOTFILES_ROOT/core"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CORE_DIR="$(dirname "$SCRIPT_DIR")"
+DOTFILES_ROOT="$(dirname "$CORE_DIR")"
 
 # Set up logging to Desktop
 LOG_FILE="$HOME/Desktop/dotfiles-provision.log"
@@ -87,7 +88,7 @@ if [[ "$dry_run" == "true" ]]; then
   info "[dry-run] Would run: dots install"
 else
   progress "Installing all topic dependencies"
-  if dots install; then
+  if "$DOTFILES_ROOT/core/dots" install; then
     success "Dependencies installed successfully"
     ((total_success++))
   else
@@ -104,9 +105,9 @@ if [[ "$dry_run" == "true" ]]; then
 else
   progress "Checking system configuration"
   if [[ "$verbose" == "true" ]]; then
-    dots status --verbose
+    "$DOTFILES_ROOT/core/dots" status --verbose
   else
-    dots status
+    "$DOTFILES_ROOT/core/dots" status
   fi
   success "Status check complete"
   ((total_success++))
@@ -119,7 +120,7 @@ if [[ "$dry_run" == "true" ]]; then
   info "[dry-run] Would run: dots relink --force"
 else
   progress "Relinking all configurations"
-  if dots relink --force; then
+  if "$DOTFILES_ROOT/core/dots" relink --force; then
     success "Configurations relinked successfully"
     ((total_success++))
   else
@@ -135,7 +136,7 @@ if [[ "$dry_run" == "true" ]]; then
   info "[dry-run] Would run: dots repair-infrastructure"
 else
   progress "Repairing infrastructure symlinks"
-  if dots repair-infrastructure; then
+  if "$DOTFILES_ROOT/core/dots" repair-infrastructure; then
     success "Infrastructure repaired successfully"
     ((total_success++))
   else
@@ -173,7 +174,7 @@ if [[ "$dry_run" == "true" ]]; then
   info "[dry-run] Would run: dots maintenance"
 else
   progress "Running system maintenance"
-  if dots maintenance; then
+  if "$DOTFILES_ROOT/core/dots" maintenance; then
     success "Maintenance completed successfully"
     ((total_success++))
   else
