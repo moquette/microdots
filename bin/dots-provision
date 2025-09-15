@@ -12,6 +12,18 @@ set -e
 DOTFILES_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 CORE_DIR="$DOTFILES_ROOT/core"
 
+# Set up logging to Desktop
+LOG_FILE="$HOME/Desktop/dotfiles-provision.log"
+exec > >(tee -a "$LOG_FILE")
+exec 2>&1
+
+# Log header
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Dotfiles Provision Log"
+echo "Date: $(date)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
 # Source UI library for consistent output
 source "$CORE_DIR/lib/ui.sh"
 
@@ -188,6 +200,8 @@ else
     info "Next steps:"
     list_item "Restart your shell: exec \$SHELL"
     list_item "Verify configuration: dots status"
+    blank
+    info "Provision log saved to: $LOG_FILE"
   else
     blank
     error "Provisioning completed with errors"
@@ -197,5 +211,7 @@ else
     list_item "dots repair-infrastructure"
     list_item "mcp-setup-global"
     list_item "dots maintenance"
+    blank
+    info "Provision log saved to: $LOG_FILE"
   fi
 fi
