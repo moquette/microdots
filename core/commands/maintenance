@@ -219,13 +219,37 @@ run_homebrew_maintenance() {
     
     # Remove orphaned dependencies
     run_task "Removing orphaned dependencies" brew autoremove
-    
+
     # Clean up old versions
     local cleanup_size=$(brew cleanup -n 2>/dev/null | grep "Would remove:" | cut -d: -f2 | xargs)
     if [[ -n "$cleanup_size" ]]; then
         run_task "Cleaning Homebrew cache (${cleanup_size})" brew cleanup
     else
         info "Homebrew cache already clean"
+    fi
+
+    # Run brew doctor for health check
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        info "[dry-run] Would run brew doctor health check"
+        TASKS_SKIPPED=$((TASKS_SKIPPED + 1))
+    else
+        progress "Running brew doctor health check"
+        local doctor_output=$(brew doctor 2>&1 || true)  # Don't exit on non-zero return
+
+        if [[ "$doctor_output" == *"ready to brew"* ]]; then
+            success "Homebrew is ready to brew"
+            TASKS_SUCCESSFUL=$((TASKS_SUCCESSFUL + 1))
+        else
+            warning "Homebrew has some issues"
+            # Show indented output for readability
+            echo "$doctor_output" | while IFS= read -r line; do
+                if [[ -n "$line" ]] && [[ "$line" != "Please note that these warnings are just used to help the Homebrew maintainers"* ]]; then
+                    indent "$line"
+                fi
+            done
+            info "Run 'brew doctor' for full details"
+            TASKS_FAILED=$((TASKS_FAILED + 1))
+        fi
     fi
     
     # Validate Brewfile if it exists
