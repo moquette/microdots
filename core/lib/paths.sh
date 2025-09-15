@@ -191,26 +191,53 @@ setup_dotlocal_infrastructure() {
     # Create infrastructure symlinks inside dotlocal
     # These provide access to shared infrastructure and documentation
     # See INFRASTRUCTURE_SYMLINKS.md for architectural justification
-    local infrastructure_symlinks=(
+
+    # Required infrastructure symlinks (must exist)
+    local required_symlinks=(
         "core:$dotfiles_root/core"                    # UI library and utilities
         "docs:$dotfiles_root/docs"                    # Documentation directory
         "MICRODOTS.md:$dotfiles_root/MICRODOTS.md"    # Architecture guide
         "CLAUDE.md:$dotfiles_root/CLAUDE.md"          # AI agent configuration
-        "TASKS.md:$dotfiles_root/TASKS.md"            # Project tasks
         "COMPLIANCE.md:$dotfiles_root/docs/architecture/COMPLIANCE.md"  # Compliance documentation
     )
 
-    for symlink_spec in "${infrastructure_symlinks[@]}"; do
+    # Optional infrastructure symlinks (created only if target exists)
+    local optional_symlinks=(
+        "TASKS.md:$dotfiles_root/TASKS.md"            # Project tasks (user-specific, not committed)
+        # Add more optional symlinks here as needed
+    )
+
+    # Process required symlinks
+    for symlink_spec in "${required_symlinks[@]}"; do
         local name="${symlink_spec%%:*}"
         local target="${symlink_spec#*:}"
         local symlink_path="$dotlocal_path/$name"
 
         # Enhanced target validation
         if [[ ! -e "$target" ]]; then
-            [[ "$verbose" == "true" ]] && warning "Infrastructure target missing: $target" >&2
+            [[ "$verbose" == "true" ]] && error "Required infrastructure target missing: $target" >&2
             continue
         elif [[ ! -r "$target" ]]; then
             [[ "$verbose" == "true" ]] && warning "Infrastructure target not readable: $target" >&2
+            continue
+        fi
+
+        # Create or update symlink using infrastructure function
+        create_infrastructure_symlink "$target" "$symlink_path" "$name" "$force" "$verbose"
+    done
+
+    # Process optional symlinks
+    for symlink_spec in "${optional_symlinks[@]}"; do
+        local name="${symlink_spec%%:*}"
+        local target="${symlink_spec#*:}"
+        local symlink_path="$dotlocal_path/$name"
+
+        # Skip if target doesn't exist (this is OK for optional symlinks)
+        if [[ ! -e "$target" ]]; then
+            [[ "$verbose" == "true" ]] && info "Optional infrastructure target not found, skipping: $name" >&2
+            continue
+        elif [[ ! -r "$target" ]]; then
+            [[ "$verbose" == "true" ]] && warning "Optional infrastructure target not readable: $target" >&2
             continue
         fi
 
@@ -232,26 +259,32 @@ validate_infrastructure_symlinks() {
         return 1
     fi
 
-    # Define expected infrastructure symlinks
-    local infrastructure_symlinks=(
+    # Required infrastructure symlinks (must exist)
+    local required_symlinks=(
         "core:$dotfiles_root/core"
         "docs:$dotfiles_root/docs"
         "MICRODOTS.md:$dotfiles_root/MICRODOTS.md"
         "CLAUDE.md:$dotfiles_root/CLAUDE.md"
-        "TASKS.md:$dotfiles_root/TASKS.md"
         "COMPLIANCE.md:$dotfiles_root/docs/architecture/COMPLIANCE.md"
+    )
+
+    # Optional infrastructure symlinks (OK if missing)
+    local optional_symlinks=(
+        "TASKS.md:$dotfiles_root/TASKS.md"
+        # Add more optional symlinks here as needed
     )
 
     [[ "$verbose" == "true" ]] && info "Validating infrastructure symlinks in: $dotlocal_path" >&2
 
-    for symlink_spec in "${infrastructure_symlinks[@]}"; do
+    # Validate required symlinks
+    for symlink_spec in "${required_symlinks[@]}"; do
         local name="${symlink_spec%%:*}"
         local expected_target="${symlink_spec#*:}"
         local symlink_path="$dotlocal_path/$name"
 
         # Check if symlink exists
         if [[ ! -e "$symlink_path" ]]; then
-            [[ "$verbose" == "true" ]] && warning "Missing infrastructure symlink: $name" >&2
+            [[ "$verbose" == "true" ]] && warning "Missing required infrastructure symlink: $name" >&2
             ((issues++))
         elif [[ ! -L "$symlink_path" ]]; then
             [[ "$verbose" == "true" ]] && warning "Not a symlink: $name (is a $(file -b "$symlink_path"))" >&2
@@ -267,6 +300,34 @@ validate_infrastructure_symlinks() {
                 if [[ "$actual_target" != "$expected_target" ]]; then
                     [[ "$verbose" == "true" ]] && warning "Wrong symlink target for $name: $actual_target (expected: $expected_target)" >&2
                     ((issues++))
+                fi
+            fi
+        fi
+    done
+
+    # Validate optional symlinks (only if they exist)
+    for symlink_spec in "${optional_symlinks[@]}"; do
+        local name="${symlink_spec%%:*}"
+        local expected_target="${symlink_spec#*:}"
+        local symlink_path="$dotlocal_path/$name"
+
+        # Only validate if symlink exists (OK if missing for optional)
+        if [[ -e "$symlink_path" ]]; then
+            if [[ ! -L "$symlink_path" ]]; then
+                [[ "$verbose" == "true" ]] && warning "Optional file exists but is not a symlink: $name" >&2
+                ((issues++))
+            else
+                # Check if symlink is broken
+                if [[ ! -e "$symlink_path" ]]; then
+                    [[ "$verbose" == "true" ]] && warning "Broken optional symlink: $name" >&2
+                    ((issues++))
+                else
+                    # Check if symlink points to correct target
+                    local actual_target=$(readlink "$symlink_path")
+                    if [[ "$actual_target" != "$expected_target" ]]; then
+                        [[ "$verbose" == "true" ]] && warning "Wrong symlink target for optional $name: $actual_target (expected: $expected_target)" >&2
+                        ((issues++))
+                    fi
                 fi
             fi
         fi
