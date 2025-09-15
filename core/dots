@@ -26,12 +26,13 @@ dots - dotfiles management system
 Usage: dots <command> [options]
 
 Commands:
-  bootstrap    Initial system setup (gitconfig, symlinks, homebrew)
-  install      Install all topics and their configurations
-  relink       Recreate all symlinks with local precedence
-  status       Show dotfiles configuration and status
-  maintenance  Perform maintenance tasks (update, clean, health checks)
-  help         Show this help message
+  bootstrap             Initial system setup (gitconfig, symlinks, homebrew)
+  install               Install all topics and their configurations
+  relink                Recreate all symlinks with local precedence
+  status                Show dotfiles configuration and status
+  maintenance           Perform maintenance tasks (update, clean, health checks)
+  repair-infrastructure Repair dotlocal infrastructure symlinks
+  help                  Show this help message
 
 Examples:
   dots bootstrap           # First-time setup
@@ -97,7 +98,16 @@ case "$COMMAND" in
       exit 1
     fi
     ;;
-    
+
+  repair-infrastructure)
+    if [ -f "$COMMANDS_DIR/repair-infrastructure" ]; then
+      exec "$COMMANDS_DIR/repair-infrastructure" "$@"
+    else
+      error "Repair-infrastructure command not found"
+      exit 1
+    fi
+    ;;
+
   help|"")
     show_help
     exit 0
