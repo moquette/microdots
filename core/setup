@@ -12,26 +12,30 @@ echo "Date: $(date)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Colors for output (only for terminal, not log)
-if [ -t 1 ]; then
-    GREEN='\033[0;32m'
-    BLUE='\033[0;34m'
-    YELLOW='\033[1;33m'
-    CYAN='\033[0;36m'
-    RED='\033[0;31m'
-    NC='\033[0m'
+# Set up paths for UI library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CORE_DIR="$SCRIPT_DIR"
+UI_LIB="$CORE_DIR/lib/ui.sh"
+
+# Source UI library if available (after bootstrap creates it)
+if [[ -f "$UI_LIB" ]]; then
+    source "$UI_LIB"
 else
-    GREEN=''
-    BLUE=''
-    YELLOW=''
-    CYAN=''
-    RED=''
-    NC=''
+    # Fallback functions for initial setup before UI library exists
+    info() { echo "› $*"; }
+    success() { echo "✓ $*"; }
+    warning() { echo "⚠ $*"; }
+    error() { echo "✗ $*" >&2; }
+    progress() { echo "⟳ $*"; }
+    header() { echo ""; echo "$*"; echo "────────────────────────────────────────────────────────────"; }
+    subheader() { echo ""; echo "$*"; }
+    blank() { echo ""; }
 fi
 
 # Cancel function
 cancel_install() {
-    echo -e "\n${RED}❌ Installation cancelled${NC}"
+    blank
+    error "Installation cancelled"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "Installation cancelled at: $(date)"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -42,14 +46,12 @@ cancel_install() {
 export NONINTERACTIVE=1
 
 # Authentication first
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${YELLOW}🔐 Microdots Installation${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${CYAN}Homebrew and system configuration requires administrator access.${NC}"
-echo -e "${CYAN}Please enter your password to continue:${NC}"
+header "🔐 Microdots Installation"
+info "Homebrew and system configuration requires administrator access."
+info "Please enter your password to continue:"
 sudo -v
 if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Authentication failed or cancelled${NC}"
+    error "Authentication failed or cancelled"
     exit 1
 fi
 
@@ -57,7 +59,8 @@ fi
 while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 SUDO_PID=$!
 
-echo -e "${GREEN}✅ Authentication successful${NC}\n"
+success "Authentication successful"
+blank
 
 # Parse arguments for custom path
 CUSTOM_PATH=""
@@ -73,82 +76,82 @@ fi
 # Now ask for local path
 if [ -n "$CUSTOM_PATH" ]; then
     DOTLOCAL="$CUSTOM_PATH"
-    echo -e "${YELLOW}📍 Using provided path: $DOTLOCAL${NC}\n"
+    info "Using provided path: $DOTLOCAL"
     LOCAL_LINE="DOTLOCAL=\"$DOTLOCAL\""
+    blank
 else
     # Local configuration header
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}📁 Local Configuration Path${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[1] ~/.dotlocal (default)${NC}"
-    echo -e "${CYAN}[2] No local configurations${NC}"
-    echo -e "${CYAN}[3] Custom path${NC}"
-    echo -e "${CYAN}[C] Cancel installation${NC}"
-    echo -e "${CYAN}Choice [1]: ${NC}\c"
+    header "📁 Local Configuration Path"
+    info "[1] ~/.dotlocal (default)"
+    info "[2] No local configurations"
+    info "[3] Custom path"
+    info "[C] Cancel installation"
+    echo -n "Choice [1]: "
     read -r response
     
     case "$response" in
         [Cc])
-            kill $SUDO_PID 2>/dev/null
+            [[ -n "$SUDO_PID" ]] && { kill -9 $SUDO_PID 2>/dev/null || true; }
             cancel_install
             ;;
         2)
             DOTLOCAL=""
             LOCAL_LINE="# DOTLOCAL=\"\$HOME/.dotlocal\""
-            echo -e "${YELLOW}⚠ Local configurations disabled${NC}\n"
+            warning "Local configurations disabled"
+            blank
             ;;
         3)
-            echo -e "${CYAN}Enter custom path: ${NC}\c"
+            echo -n "Enter custom path: "
             read -r custom_path
             if [[ -z "$custom_path" || "$custom_path" == "cancel" ]]; then
-                kill $SUDO_PID 2>/dev/null
+                [[ -n "$SUDO_PID" ]] && { kill -9 $SUDO_PID 2>/dev/null || true; }
                 cancel_install
             fi
             DOTLOCAL="$custom_path"
             LOCAL_LINE="DOTLOCAL=\"$custom_path\""
-            echo -e "${GREEN}✓ Using custom path: $custom_path${NC}\n"
+            success "Using custom path: $custom_path"
+            blank
             ;;
         1|"")
             DOTLOCAL="~/.dotlocal"
             LOCAL_LINE="DOTLOCAL=\"\$HOME/.dotlocal\""
-            echo -e "${GREEN}✓ Using default: ~/.dotlocal${NC}\n"
+            success "Using default: ~/.dotlocal"
+            blank
             ;;
         *)
             DOTLOCAL="~/.dotlocal"
             LOCAL_LINE="DOTLOCAL=\"\$HOME/.dotlocal\""
-            echo -e "${GREEN}✓ Using default: ~/.dotlocal${NC}\n"
+            success "Using default: ~/.dotlocal"
+            blank
             ;;
     esac
 fi
 
 # GitHub configuration collection
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${YELLOW}🔧 GitHub Configuration${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${CYAN}Enter your GitHub author name: ${NC}\c"
+header "🔧 GitHub Configuration"
+echo -n "Enter your GitHub author name: "
 read -r git_authorname
-echo -e "${CYAN}Enter your GitHub author email: ${NC}\c"
+echo -n "Enter your GitHub author email: "
 read -r git_authoremail
-echo -e "${GREEN}✓ GitHub information collected${NC}\n"
+success "GitHub information collected"
+blank
 
-echo -e "${YELLOW}Starting installation...${NC}\n"
+progress "Starting installation..."
+blank
 
 # Clone the microdots repository to ~/.dotfiles
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${YELLOW}🔄 Cloning microdots repository...${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+subheader "🔄 Cloning microdots repository"
 git clone https://github.com/moquette/microdots.git ~/.dotfiles
 if [ $? -ne 0 ]; then
-    kill $SUDO_PID 2>/dev/null
-    echo -e "${RED}❌ Failed to clone repository${NC}"
+    [[ -n "$SUDO_PID" ]] && { kill -9 $SUDO_PID 2>/dev/null || true; }
+    error "Failed to clone repository"
     exit 1
 fi
-echo -e "${GREEN}✅ Repository cloned successfully!${NC}\n"
+success "Repository cloned successfully"
+blank
 
 # Write the configuration to ~/.dotfiles/dotfiles.conf
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${YELLOW}📝 Writing configuration file...${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+subheader "📝 Writing configuration file"
 cat > ~/.dotfiles/dotfiles.conf << EOF
 # Dotfiles Configuration
 # This file specifies where your private/local configurations are stored
@@ -162,12 +165,11 @@ cat > ~/.dotfiles/dotfiles.conf << EOF
 # Local configuration directory
 $LOCAL_LINE
 EOF
-echo -e "${GREEN}✅ Configuration written to ~/.dotfiles/dotfiles.conf${NC}\n"
+success "Configuration written to ~/.dotfiles/dotfiles.conf"
+blank
 
 # Pre-stage GitHub configuration
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${YELLOW}📝 Pre-staging GitHub configuration...${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+subheader "📝 Pre-staging GitHub configuration"
 
 # Determine credential helper based on OS
 git_credential='cache'
@@ -182,39 +184,72 @@ if [ -f ~/.dotfiles/git/gitconfig.local.symlink.example ]; then
       -e "s/GIT_CREDENTIAL_HELPER/$git_credential/g" \
       ~/.dotfiles/git/gitconfig.local.symlink.example > \
       ~/.dotfiles/git/gitconfig.local.symlink
-  echo -e "${GREEN}✅ GitHub configuration pre-staged successfully${NC}"
-  echo -e "${CYAN}   Name: $git_authorname${NC}"
-  echo -e "${CYAN}   Email: $git_authoremail${NC}\n"
+  success "GitHub configuration pre-staged successfully"
+  info "   Name: $git_authorname"
+  info "   Email: $git_authoremail"
+  blank
 else
-  echo -e "${YELLOW}⚠ Template not found, bootstrap will prompt for GitHub info${NC}\n"
+  warning "Template not found, bootstrap will prompt for GitHub info"
+  blank
 fi
 
 # Standard bootstrap only (provision mode removed)
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${YELLOW}🚀 Bootstrapping dotfiles installation...${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
+subheader "🚀 Bootstrapping dotfiles installation"
+blank
 
 # Run bootstrap with install flag - show all output
 if ! ~/.dotfiles/core/dots bootstrap --install; then
-  echo -e "\n${YELLOW}⚠ Bootstrap completed with warnings${NC}"
-  echo -e "${YELLOW}  Some components may not have installed properly${NC}"
-  echo -e "${YELLOW}  You can run 'dots install' later to retry${NC}"
+  blank
+  warning "Bootstrap completed with warnings"
+  warning "Some components may not have installed properly"
+  warning "You can run 'dots install' later to retry"
 fi
 
 # Kill the sudo keep-alive background process quietly
-{ kill $SUDO_PID; } 2>/dev/null
+if [[ -n "$SUDO_PID" ]]; then
+  kill -9 $SUDO_PID 2>/dev/null || true
+  wait $SUDO_PID 2>/dev/null || true
+fi
 
 # Final message
-echo ""
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}✅ Bootstrap complete!${NC}"
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
-echo -e "${CYAN}Next steps:${NC}"
-echo -e "${CYAN}  1. Run: dots provision${NC}"
-echo -e "${CYAN}  2. Restart your terminal or run: source ~/.zshrc${NC}"
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+blank
+header "✅ Bootstrap complete!"
+blank
+echo -n "Complete the setup automatically? [Y/n]: "
+read -r auto_provision
+
+case "${auto_provision,,}" in
+  n|no)
+    blank
+    subheader "Manual next steps"
+    info "  1. Restart your terminal or run: source ~/.zshrc"
+    info "  2. Run: dots provision"
+    ;;
+  *)
+    blank
+    progress "Completing setup automatically..."
+    blank
+
+    # Source the new shell configuration
+    if source ~/.zshrc 2>/dev/null; then
+      success "Shell configuration loaded"
+
+      # Run provision
+      if ~/.dotfiles/core/dots provision; then
+        blank
+        success "🎉 Setup completed successfully!"
+        info "Your dotfiles are ready to use."
+      else
+        blank
+        warning "Provision completed with warnings"
+        info "Run 'dots provision' again to retry any failed steps"
+      fi
+    else
+      warning "Could not auto-load shell config"
+      info "Please restart your terminal and run: dots provision"
+    fi
+    ;;
+esac
 
 # Log footer (for the log file only)
 {
