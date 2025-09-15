@@ -20,23 +20,22 @@ Welcome to the future of dotfiles.
 
 ## ⚡ Lightning Quick Start
 
-### Standard Installation (Bootstrap)
+### Fresh System Setup
 
 ```bash
+# Step 1: Bootstrap and install
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/moquette/microdots/main/core/setup)"
-```
 
-### Restart terminal and provision
-
-```bash
+# Step 2: Complete provisioning
 dots-provision
 ```
 
-The `--provision` flag performs complete system setup:
-- ✅ Bootstrap core configuration
-- ✅ Install all tools and dependencies
+The provisioning process performs:
+- ✅ Install all topic dependencies
+- ✅ Configure system settings
+- ✅ Repair infrastructure symlinks
+- ✅ Set up MCP servers (if Claude CLI installed)
 - ✅ Run system maintenance
-- ✅ Restart shell automatically
 
 **That's it.** Your development environment is now a distributed system.
 

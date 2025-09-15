@@ -59,25 +59,15 @@ SUDO_PID=$!
 
 echo -e "${GREEN}✅ Authentication successful${NC}\n"
 
-# Parse arguments for --provision flag
-PROVISION_MODE=false
+# Parse arguments for custom path
 CUSTOM_PATH=""
 
 # When run via bash -c "$(curl ...)", there are no real arguments
 # The script itself becomes $0 and there's no $1
 # Only use $1 if it exists and doesn't look like script content
 if [ -n "$1" ] && [[ ! "$1" =~ ^#!.*bash ]] && [[ ${#1} -lt 100 ]]; then
-    # Check if it's the --provision flag
-    if [[ "$1" == "--provision" ]]; then
-        PROVISION_MODE=true
-        shift  # Remove the flag, check for path argument
-        if [ -n "$1" ] && [[ ! "$1" =~ ^#!.*bash ]] && [[ ${#1} -lt 100 ]]; then
-            CUSTOM_PATH="$1"
-        fi
-    else
-        # It's a custom path
-        CUSTOM_PATH="$1"
-    fi
+    # It's a custom path
+    CUSTOM_PATH="$1"
 fi
 
 # Now ask for local path
@@ -199,85 +189,39 @@ else
   echo -e "${YELLOW}⚠ Template not found, bootstrap will prompt for GitHub info${NC}\n"
 fi
 
-# Check if we're in provision mode
-if [[ "$PROVISION_MODE" == "true" ]]; then
-    # Full system provisioning
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}🚀 System Provisioning${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}This will perform complete system setup:${NC}"
-    echo -e "${CYAN}  • Bootstrap core configuration${NC}"
-    echo -e "${CYAN}  • Install all tools and dependencies${NC}"
-    echo -e "${CYAN}  • Run system maintenance${NC}"
-    echo -e "${CYAN}  • Restart shell environment${NC}"
-    echo ""
+# Standard bootstrap only (provision mode removed)
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}🚀 Bootstrapping dotfiles installation...${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
 
-    # Step 1: Bootstrap with install
-    echo -e "${YELLOW}📦 Step 1/3: Bootstrap & Installation...${NC}"
-    if ! ~/.dotfiles/core/dots bootstrap --install; then
-        echo -e "\n${YELLOW}⚠ Bootstrap completed with warnings${NC}"
-        echo -e "${YELLOW}  Some components may not have installed properly${NC}"
-        echo -e "${YELLOW}  Skipping maintenance due to bootstrap issues${NC}"
-    else
-        echo -e "${GREEN}✅ Bootstrap and installation successful${NC}\n"
-
-        # Homebrew environment is managed by path.zsh - no manual injection needed
-
-        # Step 2: Run maintenance
-        echo -e "${YELLOW}🔧 Step 2/3: System Maintenance...${NC}"
-        if ~/.dotfiles/core/dots maintenance; then
-            echo -e "${GREEN}✅ System maintenance completed${NC}\n"
-        else
-            echo -e "${YELLOW}⚠ Maintenance completed with warnings${NC}\n"
-        fi
-
-        # Step 3: Shell restart notification
-        echo -e "${YELLOW}🔄 Step 3/3: Preparing shell restart...${NC}"
-        echo -e "${GREEN}✅ All steps completed${NC}\n"
-    fi
-else
-    # Standard bootstrap only
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}🚀 Bootstrapping dotfiles installation...${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo ""
-
-    # Run bootstrap with install flag - show all output
-    if ! ~/.dotfiles/core/dots bootstrap --install; then
-      echo -e "\n${YELLOW}⚠ Bootstrap completed with warnings${NC}"
-      echo -e "${YELLOW}  Some components may not have installed properly${NC}"
-      echo -e "${YELLOW}  You can run 'dots install' later to retry${NC}"
-    fi
+# Run bootstrap with install flag - show all output
+if ! ~/.dotfiles/core/dots bootstrap --install; then
+  echo -e "\n${YELLOW}⚠ Bootstrap completed with warnings${NC}"
+  echo -e "${YELLOW}  Some components may not have installed properly${NC}"
+  echo -e "${YELLOW}  You can run 'dots install' later to retry${NC}"
 fi
 
 # Kill the sudo keep-alive background process quietly
 { kill $SUDO_PID; } 2>/dev/null
 
-# Final message based on mode
+# Final message
 echo ""
-if [[ "$PROVISION_MODE" == "true" ]]; then
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${GREEN}✨ System Provisioning Complete!${NC}"
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}Restarting shell to activate configuration...${NC}"
-    sleep 2
-    exec $SHELL
-else
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${GREEN}✅ Please restart your terminal or run: source ~/.zshrc${NC}"
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-fi
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}✅ Bootstrap complete!${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo -e "${CYAN}Next steps:${NC}"
+echo -e "${CYAN}  1. Run: dots-provision${NC}"
+echo -e "${CYAN}  2. Restart your terminal or run: source ~/.zshrc${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # Log footer (for the log file only)
 {
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "Installation completed at: $(date)"
-  if [[ "$PROVISION_MODE" == "true" ]]; then
-      echo "Mode: Full System Provisioning"
-  else
-      echo "Mode: Bootstrap Only"
-  fi
+  echo "Mode: Bootstrap and Install"
   if [ -n "$DOTLOCAL" ]; then
       echo "Local directory: $DOTLOCAL"
   else
