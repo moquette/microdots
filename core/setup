@@ -218,7 +218,7 @@ blank
 echo -n "Complete the setup automatically? [Y/n]: "
 read -r auto_provision
 
-case "${auto_provision,,}" in
+case "$(echo "$auto_provision" | tr '[:upper:]' '[:lower:]')" in
   n|no)
     blank
     subheader "Manual next steps"
