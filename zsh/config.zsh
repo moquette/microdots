@@ -49,21 +49,6 @@ SAVEHIST=${SAVEHIST:-1000}
 setopt LOCAL_OPTIONS  # Allow functions to have local options
 setopt LOCAL_TRAPS    # Allow functions to have local traps
 
-# Check for pending MCP setup and handle automatically
-if [[ -f "$HOME/.dotfiles-pending-mcp" ]]; then
-  # Only run if claude command is now available
-  if command -v claude >/dev/null 2>&1; then
-    echo "🤖 Claude Code detected - setting up MCP servers..."
-    # Run MCP setup quietly in background to avoid shell startup delay
-    (
-      if [[ -f "$HOME/.dotlocal/claude/mcp/install.sh" ]]; then
-        "$HOME/.dotlocal/claude/mcp/install.sh" >/dev/null 2>&1
-      elif [[ -f "$ZSH/.dotlocal/claude/mcp/install.sh" ]]; then
-        "$ZSH/.dotlocal/claude/mcp/install.sh" >/dev/null 2>&1
-      fi
-    ) &
-  fi
-fi
 
 # Note: All other options (completion, history behavior, key bindings, etc.)
 # should be configured in your local zsh microdot for full customization
