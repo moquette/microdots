@@ -395,43 +395,7 @@ clean_broken_dotfile_symlinks() {
     fi
 }
 
-# Low-level symlink creation with comprehensive error handling
-# Used internally by all higher-level functions
-_create_symlink_raw() {
-    local source="$1"
-    local target="$2"
-    local force="${3:-false}"
-    local allow_existing="${4:-false}"
-
-    # Parameter validation
-    [[ -z "$source" ]] && { echo "Error: Source path required" >&2; return 1; }
-    [[ -z "$target" ]] && { echo "Error: Target path required" >&2; return 1; }
-    [[ ! -e "$source" ]] && { echo "Error: Source does not exist: $source" >&2; return 1; }
-
-    # Handle existing target
-    if [[ -e "$target" || -L "$target" ]]; then
-        if [[ "$force" == "true" ]]; then
-            rm -rf "$target"
-        elif [[ "$allow_existing" == "false" ]]; then
-            return 2  # Signal that target exists
-        fi
-    fi
-
-    # Use the low-level function for actual symlink creation
-    if _create_symlink_raw "$source" "$target" "$force" "false"; then
-        # Only report individual links in verbose mode via callback
-        if [[ "${SYMLINK_VERBOSE:-false}" == "true" ]]; then
-            local display_msg="$(basename "$target") → $(basename "$(dirname "$source")")/$(basename "$source")"
-            symlink_ui_callback "skip" "$display_msg"  # Use skip for individual items
-        fi
-        return 0
-    else
-        symlink_ui_callback "error" "Failed to link: $target"
-        return 1
-    fi
-}
-
-# (Removed duplicate create_infrastructure_symlink - using the one in Layer 2 below)
+# (Removed broken duplicate _create_symlink_raw function - using the correct one in Layer 3 below)
 
 # Create bootstrap symlink (minimal for early setup)
 create_bootstrap_symlink() {

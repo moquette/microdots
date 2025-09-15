@@ -67,6 +67,22 @@ if [[ -z "$dotlocal_path" ]]; then
     info "Run 'dots bootstrap' to set up dotlocal"
     exit 1
   fi
+else
+  # Validate manually specified path exists and is accessible
+  if [[ ! -e "$dotlocal_path" ]]; then
+    error "Specified dotlocal path does not exist: $dotlocal_path"
+    info "Please check the path or run without -p to use auto-discovery"
+    exit 1
+  fi
+  if [[ ! -d "$dotlocal_path" ]]; then
+    error "Specified dotlocal path is not a directory: $dotlocal_path"
+    exit 1
+  fi
+  if [[ ! -w "$dotlocal_path" ]]; then
+    error "Specified dotlocal path is not writable: $dotlocal_path"
+    info "Please check permissions on the directory"
+    exit 1
+  fi
 fi
 
 # Run repair
