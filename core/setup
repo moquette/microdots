@@ -212,7 +212,7 @@ echo -e "${GREEN}✅ Bootstrap complete!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "${CYAN}Next steps:${NC}"
-echo -e "${CYAN}  1. Run: dots-provision${NC}"
+echo -e "${CYAN}  1. Run: dots provision${NC}"
 echo -e "${CYAN}  2. Restart your terminal or run: source ~/.zshrc${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 

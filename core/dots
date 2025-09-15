@@ -30,8 +30,10 @@ Commands:
   install               Install all topics and their configurations
   relink                Recreate all symlinks with local precedence
   status                Show dotfiles configuration and status
+  provision             Complete system provisioning (install + config + maintenance)
   maintenance           Perform maintenance tasks (update, clean, health checks)
   repair-infrastructure Repair dotlocal infrastructure symlinks
+  debug-provision       Debug provisioning with comprehensive error detection
   help                  Show this help message
 
 Examples:
@@ -99,11 +101,29 @@ case "$COMMAND" in
     fi
     ;;
 
+  provision)
+    if [ -f "$COMMANDS_DIR/provision" ]; then
+      exec "$COMMANDS_DIR/provision" "$@"
+    else
+      error "Provision command not found"
+      exit 1
+    fi
+    ;;
+
   repair-infrastructure)
     if [ -f "$COMMANDS_DIR/repair-infrastructure" ]; then
       exec "$COMMANDS_DIR/repair-infrastructure" "$@"
     else
       error "Repair-infrastructure command not found"
+      exit 1
+    fi
+    ;;
+
+  debug-provision)
+    if [ -f "$COMMANDS_DIR/debug-provision" ]; then
+      exec "$COMMANDS_DIR/debug-provision" "$@"
+    else
+      error "Debug-provision command not found"
       exit 1
     fi
     ;;

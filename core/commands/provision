@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# dots-provision - Complete system provisioning after bootstrap
+# provision - Complete system provisioning after bootstrap
 #
 # This script runs all necessary commands to fully provision a system
 # after initial bootstrap. It ensures proper order of operations for
@@ -45,7 +45,7 @@ while test $# -gt 0; do
       info "Complete system provisioning after bootstrap"
       blank
       subheader "Usage"
-      info "  dots-provision [options]"
+      info "  dots provision [options]"
       blank
       subheader "Options"
       list_item "--dry-run    Preview what would be done"
@@ -72,8 +72,8 @@ while test $# -gt 0; do
 done
 
 # Main execution
-header "🚀 System Provisioning"
-info "This will perform complete system setup"
+header "🚀 Dots Provision"
+info "Complete system provisioning after bootstrap"
 blank
 
 # Track overall success
@@ -190,14 +190,15 @@ if [[ "$dry_run" == "true" ]]; then
   blank
   info "Run without --dry-run to perform provisioning"
 else
-  summary "Provisioning" "$total_success" "$total_warnings" "$total_errors"
+  # Use standard UI summary function
+  summary "Provision" "$total_success" "$total_warnings" "$total_errors"
 
   if [[ $total_errors -eq 0 ]]; then
     blank
     success "✨ System provisioning complete!"
     info "Your dotfiles are fully configured and ready to use"
     blank
-    info "Next steps:"
+    subheader "Next Steps"
     list_item "Restart your shell: exec \$SHELL"
     list_item "Verify configuration: dots status"
     blank
@@ -205,7 +206,7 @@ else
   else
     blank
     error "Provisioning completed with errors"
-    info "Review the errors above and run individual commands as needed:"
+    subheader "Manual Recovery Commands"
     list_item "dots install"
     list_item "dots relink --force"
     list_item "dots repair-infrastructure"

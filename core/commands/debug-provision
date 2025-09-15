@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# dots-infra - Infrastructure provisioning with comprehensive debugging
+# debug-provision - Infrastructure provisioning with comprehensive debugging
 #
 # This script runs the same commands as dots-provision but with extensive
 # debugging to catch ALL failures, even silent ones. It verifies actual
@@ -9,8 +9,9 @@
 # DO NOT use set -e - we want to catch and report errors, not exit early
 
 # Get the dotfiles root directory
-DOTFILES_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
-CORE_DIR="$DOTFILES_ROOT/core"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CORE_DIR="$(dirname "$SCRIPT_DIR")"
+DOTFILES_ROOT="$(dirname "$CORE_DIR")"
 
 # Source UI library for consistent output
 source "$CORE_DIR/lib/ui.sh"
@@ -29,12 +30,12 @@ while test $# -gt 0; do
       verbose=true
       ;;
     --help|-h)
-      header "🔍 Dots Infrastructure Debug"
+      header "🔍 Debug Provision"
       blank
       info "Infrastructure provisioning with comprehensive debugging"
       blank
       subheader "Usage"
-      info "  dots-infra [options]"
+      info "  dots debug-provision [options]"
       blank
       subheader "Options"
       list_item "--dry-run    Preview what would be done"
@@ -60,7 +61,7 @@ while test $# -gt 0; do
       ;;
     *)
       error "Unknown option: $1"
-      info "Run 'dots-infra --help' for usage"
+      info "Run 'dots debug-provision --help' for usage"
       exit 1
       ;;
   esac

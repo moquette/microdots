@@ -27,7 +27,7 @@ Welcome to the future of dotfiles.
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/moquette/microdots/main/core/setup)"
 
 # Step 2: Complete provisioning
-dots-provision
+dots provision
 ```
 
 The provisioning process performs:
