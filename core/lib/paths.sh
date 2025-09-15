@@ -223,7 +223,7 @@ setup_dotlocal_infrastructure() {
         fi
 
         # Create or update symlink using infrastructure function
-        create_infrastructure_symlink "$target" "$symlink_path" "$name" "$force" "$verbose"
+        create_infrastructure_symlink "$symlink_path" "$target" "$name" "$force" "$verbose"
     done
 
     # Process optional symlinks
@@ -242,7 +242,7 @@ setup_dotlocal_infrastructure() {
         fi
 
         # Create or update symlink using infrastructure function
-        create_infrastructure_symlink "$target" "$symlink_path" "$name" "$force" "$verbose"
+        create_infrastructure_symlink "$symlink_path" "$target" "$name" "$force" "$verbose"
     done
 }
 
