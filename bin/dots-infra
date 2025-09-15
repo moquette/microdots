@@ -1,0 +1,504 @@
+#!/usr/bin/env bash
+#
+# dots-infra - Infrastructure provisioning with comprehensive debugging
+#
+# This script runs the same commands as dots-provision but with extensive
+# debugging to catch ALL failures, even silent ones. It verifies actual
+# results, not just exit codes.
+
+# DO NOT use set -e - we want to catch and report errors, not exit early
+
+# Get the dotfiles root directory
+DOTFILES_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+CORE_DIR="$DOTFILES_ROOT/core"
+
+# Source UI library for consistent output
+source "$CORE_DIR/lib/ui.sh"
+
+# Parse command line options
+dry_run=false
+verbose=false
+debug=true  # Always debug in this version
+
+while test $# -gt 0; do
+  case "$1" in
+    --dry-run)
+      dry_run=true
+      ;;
+    --verbose|-v)
+      verbose=true
+      ;;
+    --help|-h)
+      header "🔍 Dots Infrastructure Debug"
+      blank
+      info "Infrastructure provisioning with comprehensive debugging"
+      blank
+      subheader "Usage"
+      info "  dots-infra [options]"
+      blank
+      subheader "Options"
+      list_item "--dry-run    Preview what would be done"
+      list_item "--verbose    Show detailed output"
+      list_item "--help       Show this help message"
+      blank
+      subheader "Operations Performed"
+      info "  1. Install all topic dependencies (with error capture)"
+      info "  2. Check system status (with path validation)"
+      info "  3. Force relink configurations (with verification)"
+      info "  4. Repair infrastructure symlinks (with actual checks)"
+      info "  5. Configure MCP servers (with file verification)"
+      info "  6. Run system maintenance (with result validation)"
+      blank
+      subheader "Debug Features"
+      info "  • Captures all exit codes explicitly"
+      info "  • Verifies actual file creation"
+      info "  • Detects network mount issues"
+      info "  • Reports silent failures"
+      info "  • Shows stderr output from commands"
+      blank
+      exit 0
+      ;;
+    *)
+      error "Unknown option: $1"
+      info "Run 'dots-infra --help' for usage"
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+# Main execution
+header "🔍 Infrastructure Debug Provisioning"
+warning "This version includes comprehensive debugging"
+info "All errors will be caught and reported, even silent ones"
+blank
+
+# Track overall success with detailed tracking
+total_success=0
+total_warnings=0
+total_errors=0
+failed_operations=()
+
+# Check for network mount issues first
+subheader "Pre-flight Checks"
+progress "Checking dotlocal configuration"
+
+# Get dotlocal path
+if [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+  DOTLOCAL=$(grep "^DOTLOCAL=" "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null | cut -d'=' -f2 | tr -d '"')
+  if [[ -n "$DOTLOCAL" ]]; then
+    # Expand the path
+    DOTLOCAL_EXPANDED=$(eval echo "$DOTLOCAL")
+    key_value "DOTLOCAL configured" "$DOTLOCAL_EXPANDED"
+
+    # Check if it's a network mount
+    if [[ "$DOTLOCAL_EXPANDED" == /Volumes/* ]]; then
+      error "⚠️  NETWORK MOUNT DETECTED: $DOTLOCAL_EXPANDED"
+      warning "This path is on a network mount which WILL cause issues:"
+      list_item "Infrastructure symlinks will fail"
+      list_item "Performance will be degraded"
+      list_item "Some operations may silently fail"
+      ((total_warnings++))
+      failed_operations+=("Network mount: $DOTLOCAL_EXPANDED")
+    else
+      success "Dotlocal is on local storage"
+    fi
+
+    # Check if path exists and is accessible
+    if [[ ! -d "$DOTLOCAL_EXPANDED" ]]; then
+      error "Dotlocal path does not exist: $DOTLOCAL_EXPANDED"
+      ((total_errors++))
+      failed_operations+=("Missing dotlocal: $DOTLOCAL_EXPANDED")
+    elif [[ ! -r "$DOTLOCAL_EXPANDED" ]]; then
+      error "Dotlocal path is not readable: $DOTLOCAL_EXPANDED"
+      ((total_errors++))
+      failed_operations+=("Unreadable dotlocal: $DOTLOCAL_EXPANDED")
+    fi
+  else
+    info "No DOTLOCAL configured in dotfiles.conf"
+  fi
+else
+  info "No dotfiles.conf found"
+fi
+blank
+
+# Step 1: Install all dependencies with detailed error capture
+subheader "Step 1/6: Installing Dependencies [DEBUG]"
+if [[ "$dry_run" == "true" ]]; then
+  info "[dry-run] Would run: dots install"
+else
+  progress "Installing all topic dependencies (capturing all output)"
+
+  # Capture both stdout and stderr
+  install_output=$(dots install 2>&1)
+  install_exit_code=$?
+
+  if [[ $install_exit_code -eq 0 ]]; then
+    success "dots install returned success (exit code: 0)"
+    ((total_success++))
+
+    # But let's verify some installers actually ran
+    installer_count=$(echo "$install_output" | grep -c "Installing" || true)
+    if [[ $installer_count -gt 0 ]]; then
+      info "Detected $installer_count installers ran"
+    else
+      warning "No installers detected in output - might be an issue"
+      ((total_warnings++))
+    fi
+  else
+    error "dots install FAILED (exit code: $install_exit_code)"
+    ((total_errors++))
+    failed_operations+=("dots install: exit $install_exit_code")
+
+    # Show the actual error output
+    if [[ -n "$install_output" ]]; then
+      error "Error output:"
+      echo "$install_output" | while IFS= read -r line; do
+        indent "  $line"
+      done
+    fi
+  fi
+
+  # Check for specific error patterns
+  if echo "$install_output" | grep -q "command not found\|No such file\|Permission denied"; then
+    error "Detected critical errors in install output"
+    ((total_errors++))
+  fi
+fi
+blank
+
+# Step 2: Check system status with validation
+subheader "Step 2/6: System Status Check [DEBUG]"
+if [[ "$dry_run" == "true" ]]; then
+  info "[dry-run] Would run: dots status"
+else
+  progress "Checking system configuration (with validation)"
+
+  # Capture status output
+  if [[ "$verbose" == "true" ]]; then
+    status_output=$(dots status --verbose 2>&1)
+  else
+    status_output=$(dots status 2>&1)
+  fi
+  status_exit_code=$?
+
+  if [[ $status_exit_code -eq 0 ]]; then
+    success "dots status returned success (exit code: 0)"
+    ((total_success++))
+
+    # Parse status output for issues
+    if echo "$status_output" | grep -q "Not configured\|Missing\|Error"; then
+      warning "Status shows configuration issues"
+      ((total_warnings++))
+      failed_operations+=("Status warnings detected")
+    fi
+
+    # Check if infrastructure is reported as healthy
+    if echo "$status_output" | grep -q "Infrastructure.*unhealthy\|broken"; then
+      error "Infrastructure reported as unhealthy"
+      ((total_errors++))
+      failed_operations+=("Infrastructure unhealthy")
+    fi
+  else
+    error "dots status FAILED (exit code: $status_exit_code)"
+    ((total_errors++))
+    failed_operations+=("dots status: exit $status_exit_code")
+  fi
+fi
+blank
+
+# Step 3: Force relink configurations with verification
+subheader "Step 3/6: Configuration Relink [DEBUG]"
+if [[ "$dry_run" == "true" ]]; then
+  info "[dry-run] Would run: dots relink --force"
+else
+  progress "Relinking all configurations (with verification)"
+
+  # Count symlinks before
+  symlinks_before=$(find ~ -maxdepth 1 -type l 2>/dev/null | wc -l)
+
+  # Run relink
+  relink_output=$(dots relink --force 2>&1)
+  relink_exit_code=$?
+
+  if [[ $relink_exit_code -eq 0 ]]; then
+    success "dots relink returned success (exit code: 0)"
+    ((total_success++))
+
+    # Count symlinks after
+    symlinks_after=$(find ~ -maxdepth 1 -type l 2>/dev/null | wc -l)
+    info "Symlinks before: $symlinks_before, after: $symlinks_after"
+
+    # Check for actual symlink creation
+    if [[ ! -L "$HOME/.zshrc" ]]; then
+      error "Critical symlink missing: ~/.zshrc"
+      ((total_errors++))
+      failed_operations+=("Missing ~/.zshrc symlink")
+    fi
+
+    if [[ ! -L "$HOME/.gitconfig" ]]; then
+      warning "Expected symlink missing: ~/.gitconfig"
+      ((total_warnings++))
+    fi
+
+    # Check for error patterns in output
+    if echo "$relink_output" | grep -q "Failed to\|Error\|cannot"; then
+      error "Detected errors in relink output despite success exit code"
+      ((total_errors++))
+      failed_operations+=("Hidden relink errors")
+    fi
+  else
+    error "dots relink FAILED (exit code: $relink_exit_code)"
+    ((total_errors++))
+    failed_operations+=("dots relink: exit $relink_exit_code")
+
+    # Show errors
+    if [[ -n "$relink_output" ]]; then
+      error "Error output:"
+      echo "$relink_output" | grep -i "error\|fail" | while IFS= read -r line; do
+        indent "  $line"
+      done
+    fi
+  fi
+fi
+blank
+
+# Step 4: Repair infrastructure with ACTUAL verification
+subheader "Step 4/6: Infrastructure Repair [DEBUG]"
+if [[ "$dry_run" == "true" ]]; then
+  info "[dry-run] Would run: dots repair-infrastructure"
+else
+  progress "Repairing infrastructure symlinks (with actual verification)"
+
+  # Run repair
+  repair_output=$(dots repair-infrastructure 2>&1)
+  repair_exit_code=$?
+
+  if [[ $repair_exit_code -eq 0 ]]; then
+    success "dots repair-infrastructure returned success (exit code: 0)"
+    ((total_success++))
+
+    # But let's ACTUALLY check if infrastructure symlinks exist
+    if [[ -n "$DOTLOCAL_EXPANDED" ]] && [[ -d "$DOTLOCAL_EXPANDED" ]]; then
+      info "Verifying infrastructure symlinks in: $DOTLOCAL_EXPANDED"
+
+      # Check each required infrastructure symlink
+      infrastructure_check_passed=true
+      for symlink in "core" "docs" "MICRODOTS.md" "CLAUDE.md"; do
+        symlink_path="$DOTLOCAL_EXPANDED/$symlink"
+        if [[ -L "$symlink_path" ]]; then
+          target=$(readlink "$symlink_path" 2>/dev/null)
+          if [[ -e "$symlink_path" ]]; then
+            success "✓ $symlink → $target"
+          else
+            error "✗ $symlink → $target (BROKEN LINK)"
+            ((total_errors++))
+            failed_operations+=("Broken: $symlink")
+            infrastructure_check_passed=false
+          fi
+        elif [[ -e "$symlink_path" ]]; then
+          warning "⚠ $symlink exists but is not a symlink"
+          ((total_warnings++))
+        else
+          error "✗ $symlink MISSING"
+          ((total_errors++))
+          failed_operations+=("Missing: $symlink")
+          infrastructure_check_passed=false
+        fi
+      done
+
+      if [[ "$infrastructure_check_passed" == "false" ]]; then
+        error "Infrastructure verification FAILED despite success exit code"
+      fi
+    else
+      warning "Cannot verify infrastructure - dotlocal not accessible"
+      ((total_warnings++))
+    fi
+
+    # Check if repair actually did anything
+    if echo "$repair_output" | grep -q "No infrastructure issues found"; then
+      info "Repair reported no issues found"
+    elif echo "$repair_output" | grep -q "Network mount detected\|Skipping infrastructure"; then
+      error "Infrastructure repair was SKIPPED due to network mount"
+      ((total_errors++))
+      failed_operations+=("Infrastructure skipped: network mount")
+    fi
+  else
+    error "dots repair-infrastructure FAILED (exit code: $repair_exit_code)"
+    ((total_errors++))
+    failed_operations+=("dots repair-infrastructure: exit $repair_exit_code")
+
+    # Show the actual errors
+    if echo "$repair_output" | grep -q "Network mount\|/Volumes"; then
+      error "Failed due to network mount path"
+    fi
+  fi
+fi
+blank
+
+# Step 5: Configure MCP servers with file verification
+subheader "Step 5/6: MCP Server Configuration [DEBUG]"
+if [[ "$dry_run" == "true" ]]; then
+  info "[dry-run] Would run: mcp-setup-global"
+else
+  progress "Configuring MCP servers (with file verification)"
+
+  # Check if command exists
+  if ! command -v mcp-setup-global >/dev/null 2>&1; then
+    error "mcp-setup-global command NOT FOUND"
+    warning "Claude CLI needs to be installed first"
+    ((total_errors++))
+    failed_operations+=("mcp-setup-global not found")
+  else
+    # Run MCP setup
+    mcp_output=$(mcp-setup-global 2>&1)
+    mcp_exit_code=$?
+
+    if [[ $mcp_exit_code -eq 0 ]]; then
+      success "mcp-setup-global returned success (exit code: 0)"
+      ((total_success++))
+
+      # Verify the actual configuration file was created/updated
+      claude_config="$HOME/.claude/.claude.json"
+      if [[ -f "$claude_config" ]]; then
+        config_size=$(stat -f%z "$claude_config" 2>/dev/null || stat -c%s "$claude_config" 2>/dev/null || echo "0")
+        if [[ $config_size -gt 100 ]]; then
+          success "Claude config exists and has content ($config_size bytes)"
+        else
+          warning "Claude config exists but seems empty ($config_size bytes)"
+          ((total_warnings++))
+        fi
+
+        # Check if it has MCP servers configured
+        if grep -q "mcpServers" "$claude_config" 2>/dev/null; then
+          server_count=$(grep -c '"command"' "$claude_config" 2>/dev/null || echo "0")
+          info "Found $server_count MCP servers configured"
+        else
+          error "No MCP servers found in config despite success"
+          ((total_errors++))
+          failed_operations+=("No MCP servers in config")
+        fi
+      else
+        error "Claude config file NOT created despite success exit code"
+        ((total_errors++))
+        failed_operations+=("Missing ~/.claude/.claude.json")
+      fi
+    else
+      error "mcp-setup-global FAILED (exit code: $mcp_exit_code)"
+      ((total_errors++))
+      failed_operations+=("mcp-setup-global: exit $mcp_exit_code")
+
+      # Show error output
+      if [[ -n "$mcp_output" ]]; then
+        error "Error output:"
+        echo "$mcp_output" | head -10 | while IFS= read -r line; do
+          indent "  $line"
+        done
+      fi
+    fi
+  fi
+fi
+blank
+
+# Step 6: System maintenance with result validation
+subheader "Step 6/6: System Maintenance [DEBUG]"
+if [[ "$dry_run" == "true" ]]; then
+  info "[dry-run] Would run: dots maintenance"
+else
+  progress "Running system maintenance (with result validation)"
+
+  # Run maintenance
+  maintenance_output=$(dots maintenance 2>&1)
+  maintenance_exit_code=$?
+
+  if [[ $maintenance_exit_code -eq 0 ]]; then
+    success "dots maintenance returned success (exit code: 0)"
+    ((total_success++))
+
+    # Check what maintenance actually did
+    if echo "$maintenance_output" | grep -q "Updated\|Cleaned\|Fixed"; then
+      info "Maintenance performed actions"
+    else
+      warning "Maintenance may not have done anything"
+    fi
+
+    # Check for hidden errors
+    if echo "$maintenance_output" | grep -q "Error\|Failed\|Cannot"; then
+      warning "Detected potential errors in maintenance output"
+      ((total_warnings++))
+    fi
+  else
+    error "dots maintenance FAILED (exit code: $maintenance_exit_code)"
+    ((total_errors++))
+    failed_operations+=("dots maintenance: exit $maintenance_exit_code")
+  fi
+fi
+blank
+
+# Detailed failure report
+separator
+header "📊 Detailed Debug Report"
+
+# System information
+subheader "System Information"
+key_value "DOTFILES_ROOT" "$DOTFILES_ROOT"
+key_value "DOTLOCAL" "${DOTLOCAL_EXPANDED:-Not configured}"
+key_value "Shell" "$SHELL"
+key_value "User" "$USER"
+key_value "Home" "$HOME"
+blank
+
+# Network mount detection
+if [[ -n "$DOTLOCAL_EXPANDED" ]] && [[ "$DOTLOCAL_EXPANDED" == /Volumes/* ]]; then
+  subheader "⚠️  Critical Issue: Network Mount"
+  error "Your dotlocal is on a network mount: $DOTLOCAL_EXPANDED"
+  info "This causes:"
+  list_item "Infrastructure symlinks cannot be created"
+  list_item "Performance degradation"
+  list_item "Potential data sync issues"
+  info "Solution: Use local storage or iCloud Drive with proper sync"
+  blank
+fi
+
+# Summary with details
+subheader "Execution Summary"
+key_value "Successful operations" "$total_success"
+key_value "Warnings" "$total_warnings"
+key_value "Errors" "$total_errors"
+blank
+
+# List all failures
+if [[ ${#failed_operations[@]} -gt 0 ]]; then
+  subheader "Failed Operations"
+  for failure in "${failed_operations[@]}"; do
+    error "• $failure"
+  done
+  blank
+fi
+
+# Final verdict
+if [[ $total_errors -eq 0 ]]; then
+  if [[ $total_warnings -eq 0 ]]; then
+    success "✅ All operations completed successfully!"
+  else
+    warning "⚠️  Completed with $total_warnings warning(s)"
+    info "System is functional but review warnings above"
+  fi
+else
+  error "❌ Infrastructure provisioning FAILED"
+  error "Found $total_errors error(s) that need attention"
+  blank
+  info "Critical issues to address:"
+  if [[ "$DOTLOCAL_EXPANDED" == /Volumes/* ]]; then
+    list_item "1. Move dotlocal off network mount"
+  fi
+  list_item "2. Review failed operations above"
+  list_item "3. Run individual commands with --verbose for details"
+fi
+
+# Exit with appropriate code
+if [[ $total_errors -gt 0 ]]; then
+  exit 1
+else
+  exit 0
+fi

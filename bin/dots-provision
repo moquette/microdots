@@ -1,0 +1,201 @@
+#!/usr/bin/env bash
+#
+# dots-provision - Complete system provisioning after bootstrap
+#
+# This script runs all necessary commands to fully provision a system
+# after initial bootstrap. It ensures proper order of operations for
+# installation, configuration, and maintenance.
+
+set -e
+
+# Get the dotfiles root directory
+DOTFILES_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+CORE_DIR="$DOTFILES_ROOT/core"
+
+# Source UI library for consistent output
+source "$CORE_DIR/lib/ui.sh"
+
+# Parse command line options
+dry_run=false
+verbose=false
+
+while test $# -gt 0; do
+  case "$1" in
+    --dry-run)
+      dry_run=true
+      ;;
+    --verbose|-v)
+      verbose=true
+      ;;
+    --help|-h)
+      header "🚀 Dots Provision"
+      blank
+      info "Complete system provisioning after bootstrap"
+      blank
+      subheader "Usage"
+      info "  dots-provision [options]"
+      blank
+      subheader "Options"
+      list_item "--dry-run    Preview what would be done"
+      list_item "--verbose    Show detailed output"
+      list_item "--help       Show this help message"
+      blank
+      subheader "Operations Performed"
+      info "  1. Install all topic dependencies"
+      info "  2. Check system status"
+      info "  3. Force relink all configurations"
+      info "  4. Repair infrastructure symlinks"
+      info "  5. Configure MCP servers"
+      info "  6. Run system maintenance"
+      blank
+      exit 0
+      ;;
+    *)
+      error "Unknown option: $1"
+      info "Run 'dots-provision --help' for usage"
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+# Main execution
+header "🚀 System Provisioning"
+info "This will perform complete system setup"
+blank
+
+# Track overall success
+total_success=0
+total_warnings=0
+total_errors=0
+
+# Step 1: Install all dependencies
+subheader "Step 1/6: Installing Dependencies"
+if [[ "$dry_run" == "true" ]]; then
+  info "[dry-run] Would run: dots install"
+else
+  progress "Installing all topic dependencies"
+  if dots install; then
+    success "Dependencies installed successfully"
+    ((total_success++))
+  else
+    warning "Some dependencies may have failed to install"
+    ((total_warnings++))
+  fi
+fi
+blank
+
+# Step 2: Check system status
+subheader "Step 2/6: System Status Check"
+if [[ "$dry_run" == "true" ]]; then
+  info "[dry-run] Would run: dots status"
+else
+  progress "Checking system configuration"
+  if [[ "$verbose" == "true" ]]; then
+    dots status --verbose
+  else
+    dots status
+  fi
+  success "Status check complete"
+  ((total_success++))
+fi
+blank
+
+# Step 3: Force relink configurations
+subheader "Step 3/6: Configuration Relink"
+if [[ "$dry_run" == "true" ]]; then
+  info "[dry-run] Would run: dots relink --force"
+else
+  progress "Relinking all configurations"
+  if dots relink --force; then
+    success "Configurations relinked successfully"
+    ((total_success++))
+  else
+    error "Failed to relink configurations"
+    ((total_errors++))
+  fi
+fi
+blank
+
+# Step 4: Repair infrastructure
+subheader "Step 4/6: Infrastructure Repair"
+if [[ "$dry_run" == "true" ]]; then
+  info "[dry-run] Would run: dots repair-infrastructure"
+else
+  progress "Repairing infrastructure symlinks"
+  if dots repair-infrastructure; then
+    success "Infrastructure repaired successfully"
+    ((total_success++))
+  else
+    warning "Infrastructure repair completed with warnings"
+    ((total_warnings++))
+  fi
+fi
+blank
+
+# Step 5: Configure MCP servers
+subheader "Step 5/6: MCP Server Configuration"
+if [[ "$dry_run" == "true" ]]; then
+  info "[dry-run] Would run: mcp-setup-global"
+else
+  progress "Configuring MCP servers"
+  if command -v mcp-setup-global >/dev/null 2>&1; then
+    if mcp-setup-global; then
+      success "MCP servers configured successfully"
+      ((total_success++))
+    else
+      warning "MCP configuration completed with warnings"
+      ((total_warnings++))
+    fi
+  else
+    warning "mcp-setup-global not found - install Claude CLI first"
+    info "You can install it later and run: mcp-setup-global"
+    ((total_warnings++))
+  fi
+fi
+blank
+
+# Step 6: System maintenance (MUST BE LAST)
+subheader "Step 6/6: System Maintenance"
+if [[ "$dry_run" == "true" ]]; then
+  info "[dry-run] Would run: dots maintenance"
+else
+  progress "Running system maintenance"
+  if dots maintenance; then
+    success "Maintenance completed successfully"
+    ((total_success++))
+  else
+    warning "Maintenance completed with warnings"
+    ((total_warnings++))
+  fi
+fi
+blank
+
+# Final summary
+separator
+if [[ "$dry_run" == "true" ]]; then
+  info "Dry-run complete. No changes were made."
+  blank
+  info "Run without --dry-run to perform provisioning"
+else
+  summary "Provisioning" "$total_success" "$total_warnings" "$total_errors"
+
+  if [[ $total_errors -eq 0 ]]; then
+    blank
+    success "✨ System provisioning complete!"
+    info "Your dotfiles are fully configured and ready to use"
+    blank
+    info "Next steps:"
+    list_item "Restart your shell: exec \$SHELL"
+    list_item "Verify configuration: dots status"
+  else
+    blank
+    error "Provisioning completed with errors"
+    info "Review the errors above and run individual commands as needed:"
+    list_item "dots install"
+    list_item "dots relink --force"
+    list_item "dots repair-infrastructure"
+    list_item "mcp-setup-global"
+    list_item "dots maintenance"
+  fi
+fi
