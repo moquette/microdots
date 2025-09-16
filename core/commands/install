@@ -52,16 +52,45 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   
   # Skip regular Brewfile processing if --apps flag is set
   if [[ "$apps_only" != "true" ]]; then
-    # Check if brew is available and Brewfile exists
-    if command -v brew >/dev/null 2>&1 && [ -f "$DOTFILES_ROOT/homebrew/Brewfile" ]; then
-      subheader "Homebrew Setup"
-      progress "Running Homebrew bundle"
-      if brew bundle --file="$DOTFILES_ROOT/homebrew/Brewfile"; then
-        success "Homebrew packages installed"
-      else
-        warning "Some Homebrew packages failed to install"
+    # Check if brew is available
+    if command -v brew >/dev/null 2>&1; then
+      # Load DOTLOCAL configuration if not already loaded
+      if [[ -z "$DOTLOCAL" ]] && [[ -f "$DOTFILES_ROOT/dotfiles.conf" ]]; then
+        eval "$(grep '^DOTLOCAL=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
       fi
-      blank
+
+      # Apply "local always wins" precedence for Brewfile
+      brewfile_installed=false
+
+      # First check for local Brewfile (takes precedence)
+      if [[ -n "$DOTLOCAL" ]]; then
+        DOTLOCAL_EXPANDED=$(expand_path "$DOTLOCAL")
+        if [[ -f "$DOTLOCAL_EXPANDED/homebrew/Brewfile" ]]; then
+          subheader "Local Homebrew Setup"
+          progress "Installing from local Brewfile"
+          info "Using: $DOTLOCAL_EXPANDED/homebrew/Brewfile"
+          if brew bundle --file="$DOTLOCAL_EXPANDED/homebrew/Brewfile"; then
+            success "Local Homebrew packages installed"
+            brewfile_installed=true
+          else
+            warning "Some local Homebrew packages failed to install"
+            brewfile_installed=true  # Still mark as attempted
+          fi
+          blank
+        fi
+      fi
+
+      # If no local Brewfile, fall back to public one
+      if [[ "$brewfile_installed" == "false" ]] && [[ -f "$DOTFILES_ROOT/homebrew/Brewfile" ]]; then
+        subheader "Homebrew Setup"
+        progress "Installing from public Brewfile"
+        if brew bundle --file="$DOTFILES_ROOT/homebrew/Brewfile"; then
+          success "Homebrew packages installed"
+        else
+          warning "Some Homebrew packages failed to install"
+        fi
+        blank
+      fi
     fi
   fi
 fi

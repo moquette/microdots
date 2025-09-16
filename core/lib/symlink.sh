@@ -513,6 +513,12 @@ list_managed_symlinks() {
 # Layer 2: Specialized symlink creation functions
 
 # Create infrastructure symlinks (for paths.sh)
+#
+# This function handles the specific requirements of infrastructure symlinks:
+# - Detects and resolves nested duplicate directories (e.g., ~/.dotlocal/core/core)
+# - Safely backs up existing directories with user data
+# - Preserves the Three-Tier Architecture by using _create_symlink_raw() as single source of truth
+#
 create_infrastructure_symlink() {
     local source="$1"
     local target="$2"
@@ -522,6 +528,52 @@ create_infrastructure_symlink() {
 
     [[ "$verbose" == "true" ]] && info "Creating infrastructure symlink: $name" >&2
 
+    # Infrastructure-specific: Handle nested duplicate directories
+    # This addresses the edge case where directories like ~/.dotlocal/core/core exist
+    if [[ -d "$target" ]] && [[ ! -L "$target" ]]; then
+        local nested_duplicate="$target/$name"
+
+        if [[ -d "$nested_duplicate" ]]; then
+            [[ "$verbose" == "true" ]] && warning "Detected nested duplicate: $nested_duplicate" >&2
+
+            # Create backup directory with timestamp
+            local backup_dir="${target}.backup.$(date +%s)"
+            [[ "$verbose" == "true" ]] && info "Creating backup: $backup_dir" >&2
+
+            # Move the existing directory to backup
+            if mv "$target" "$backup_dir" 2>/dev/null; then
+                [[ "$verbose" == "true" ]] && success "Backed up to: $backup_dir" >&2
+
+                # Move the nested content up to the backup for user access
+                if [[ -n "$(ls -A "$nested_duplicate" 2>/dev/null)" ]]; then
+                    [[ "$verbose" == "true" ]] && info "Merging nested content to backup" >&2
+                    cp -r "$nested_duplicate"/* "$backup_dir/" 2>/dev/null || true
+                fi
+            else
+                [[ "$verbose" == "true" ]] && error "Failed to backup existing directory: $target" >&2
+                return 1
+            fi
+        elif [[ "$force" == "true" ]] || [[ -z "$(ls -A "$target" 2>/dev/null)" ]]; then
+            # Empty directory or force mode - safe to remove
+            [[ "$verbose" == "true" ]] && info "Removing existing directory: $target" >&2
+            rm -rf "$target" 2>/dev/null || {
+                error "Failed to remove existing directory: $target" >&2
+                return 1
+            }
+        else
+            # Non-empty directory - backup it
+            local backup_dir="${target}.backup.$(date +%s)"
+            [[ "$verbose" == "true" ]] && info "Backing up non-empty directory: $target → $backup_dir" >&2
+
+            if ! mv "$target" "$backup_dir" 2>/dev/null; then
+                error "Failed to backup non-empty directory: $target" >&2
+                return 1
+            fi
+            [[ "$verbose" == "true" ]] && success "Backed up to: $backup_dir" >&2
+        fi
+    fi
+
+    # Now create the symlink using the standard low-level function
     if _create_symlink_raw "$source" "$target" "$force" "true"; then
         [[ "$verbose" == "true" ]] && success "Infrastructure symlink created: $name → $source" >&2
         return 0
