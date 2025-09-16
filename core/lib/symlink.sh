@@ -573,6 +573,15 @@ create_infrastructure_symlink() {
         fi
     fi
 
+    # Check if symlink already exists and is correct before attempting creation
+    if [[ -L "$target" ]]; then
+        local current_target=$(readlink "$target")
+        if [[ "$current_target" == "$source" ]]; then
+            [[ "$verbose" == "true" ]] && info "Infrastructure symlink already correct: $name → $source" >&2
+            return 0
+        fi
+    fi
+
     # Now create the symlink using the standard low-level function
     if _create_symlink_raw "$source" "$target" "$force" "true"; then
         [[ "$verbose" == "true" ]] && success "Infrastructure symlink created: $name → $source" >&2
@@ -690,6 +699,16 @@ _create_symlink_raw() {
 
     # Handle existing target
     if [[ -e "$target" ]] || [[ -L "$target" ]]; then
+        if [[ -L "$target" ]]; then
+            # Check if existing symlink already points to the correct source
+            # CRITICAL FIX: This prevents infrastructure symlinks from failing when they already exist
+            local current_target=$(readlink "$target")
+            if [[ "$current_target" == "$source" ]]; then
+                # Symlink already exists and is correct - success!
+                return 0
+            fi
+        fi
+
         if [[ "$force" == "true" ]]; then
             rm -rf "$target" 2>/dev/null || {
                 error "Failed to remove existing target: $target" >&2
@@ -698,6 +717,13 @@ _create_symlink_raw() {
         elif [[ "$allow_existing" != "true" ]]; then
             # Target exists and we're not forcing
             return 1
+        else
+            # allow_existing is true but target exists and is not correct symlink
+            # We need to remove it to create the new one
+            rm -rf "$target" 2>/dev/null || {
+                error "Failed to remove existing target for replacement: $target" >&2
+                return 1
+            }
         fi
     fi
 

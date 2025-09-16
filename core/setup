@@ -216,12 +216,9 @@ blank
 header "✅ Setup Complete!"
 blank
 subheader "Next Steps"
-info "  1. Restart your terminal or run: source ~/.zshrc"
-info "  2. Run: dots provision"
-info "  3. Check status with: dots status"
+info "  Restart your terminal and run \`dots provision\` to complete provisioning."
 blank
 success "Your dotfiles bootstrap is ready!"
-info "The provision step will complete the full installation with all dependencies."
 
 # Log footer (for the log file only)
 {
