@@ -59,7 +59,19 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
         eval "$(grep '^DOTLOCAL=' "$DOTFILES_ROOT/dotfiles.conf" 2>/dev/null || true)"
       fi
 
-      # Apply "local always wins" precedence for Brewfile
+      # Brewfile Installation with "Local Always Wins" Precedence
+      # =========================================================
+      # This implementation follows the Microdots principle where local configurations
+      # completely override public ones. The system checks for Brewfiles in this order:
+      #
+      # 1. ~/.dotlocal/homebrew/Brewfile (if exists, takes precedence)
+      # 2. ~/.dotfiles/homebrew/Brewfile (only used if no local version exists)
+      #
+      # This ensures users can maintain their own package lists privately while
+      # still benefiting from public templates. The local Brewfile completely
+      # replaces the public one - they are not merged.
+      #
+      # Fixed: September 2025 - Previously only checked public Brewfile
       brewfile_installed=false
 
       # First check for local Brewfile (takes precedence)

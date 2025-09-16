@@ -131,6 +131,11 @@ All other code in the system MUST use the appropriate Layer 1 or Layer 2 functio
 - Creates the 6 infrastructure symlinks in dotlocal system
 - Handles: core→~/.dotfiles/core, docs→~/.dotfiles/docs, etc.
 - Allows existing targets (infrastructure sharing is intentional)
+- **Enhanced September 2025**: Detects and resolves nested duplicate directories
+  - Handles edge case where directories like `~/.dotlocal/core/core` exist
+  - Creates timestamped backups (e.g., `core.backup.1234567890`)
+  - Merges nested content to backup before symlink creation
+  - Maintains Three-Tier Architecture by keeping domain logic at Layer 2
 - Used by: `setup_dotlocal_infrastructure()` in paths.sh
 
 **`create_bootstrap_symlink(source, target, name, skip_existing)`**
@@ -245,6 +250,11 @@ Features:
 - Force recreation capability
 - Automatic conflict resolution
 - Detailed operation logging
+- **Fixed September 2025**: Handles nested duplicate directories edge case
+  - Detects patterns like `~/.dotlocal/core/core` or `~/.dotlocal/docs/docs`
+  - Creates timestamped backups before removing directories
+  - Safely merges nested content to backup location
+  - Prevents data loss when converting directories to symlinks
 
 #### `validate_infrastructure_symlinks(dotlocal_path, dotfiles_root, verbose)`
 Health checking for all infrastructure symlinks:
@@ -374,6 +384,10 @@ dots install
 ```
 
 1. Runs Homebrew bundle to install packages
+   - **Fixed September 2025**: Now follows "local always wins" precedence
+   - Checks `~/.dotlocal/homebrew/Brewfile` first (if exists, takes precedence)
+   - Falls back to `~/.dotfiles/homebrew/Brewfile` only if no local version
+   - Local Brewfile completely replaces public one (not merged)
 2. Discovers all topics with `install.sh` scripts
 3. Executes each installer in sequence
 4. Reports success/failure for each topic
