@@ -1,0 +1,372 @@
+#!/usr/bin/env bash
+# dots-classify - Analyze dotlocal directories and create .microdot.type marker files
+# Part of Phase 1: Marker Files implementation for dotlocal reorganization
+
+# Remove strict error handling since we're dealing with mixed file types
+# set -eo pipefail
+
+# Get directory paths
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+# Script is now in core/commands/, so we need to go up two levels
+DOTFILES_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+# Discover dotlocal path (using system's discovery mechanism)
+if [[ -L "$DOTFILES_ROOT/.dotlocal" ]]; then
+  # Follow symlink - use cd to get absolute path
+  DOTLOCAL_DIR="$(cd "$DOTFILES_ROOT/.dotlocal" && pwd -P)"
+elif [[ -d "$DOTFILES_ROOT/.dotlocal" ]]; then
+  # Use directory
+  DOTLOCAL_DIR="$DOTFILES_ROOT/.dotlocal"
+elif [[ -d "$HOME/.dotlocal" ]]; then
+  # Fall back to home directory
+  DOTLOCAL_DIR="$HOME/.dotlocal"
+else
+  DOTLOCAL_DIR="${DOTLOCAL:-$HOME/.dotlocal}"
+fi
+
+# Source UI library for consistent output
+source "$DOTFILES_ROOT/core/lib/ui.sh" 2>/dev/null || {
+  header() { echo ""; echo "=== $@ ==="; echo ""; }
+  subheader() { echo ""; echo "--- $@ ---"; }
+  info() { echo "› $@"; }
+  success() { echo "✓ $@"; }
+  error() { echo "✗ $@" >&2; }
+  warning() { echo "⚠ $@"; }
+  status() { echo "$1: $2"; }
+  summary() { echo ""; echo "Summary: $2 processed, $3 warnings, $4 errors"; }
+}
+
+# Counters
+processed=0
+warnings=0
+errors=0
+
+# Usage function
+usage() {
+  cat <<EOF
+Usage: dots classify [OPTIONS] [DIRECTORY]
+
+Classify directories in the unified Microdots ecosystem (.dotfiles + .dotlocal).
+Creates .microdot.type marker files to identify microdots vs configs vs private data.
+
+Options:
+  -h, --help        Show this help message
+  -v, --verbose     Show detailed analysis
+  -d, --dry-run     Preview changes without creating files
+  -f, --force       Overwrite existing .microdot.type files
+  -c, --clean       Remove all .microdot.type files
+
+Scope Options:
+  -a, --all         Classify entire ecosystem (default)
+  -p, --public      Only classify public dotfiles
+  -l, --local       Only classify private dotlocal
+
+Arguments:
+  DIRECTORY         Specific directory to classify
+
+Examples:
+  dots classify                    # Classify entire ecosystem (public + private)
+  dots classify --public           # Only classify ~/.dotfiles
+  dots classify --local            # Only classify ~/.dotlocal
+  dots classify -v                 # Verbose output for entire ecosystem
+  dots classify ~/.dotlocal/z      # Classify specific directory
+  dots classify --clean            # Remove all marker files
+
+EOF
+  exit 0
+}
+
+# Parse arguments
+VERBOSE=false
+DRY_RUN=false
+FORCE=false
+CLEAN=false
+TARGET_DIR=""
+SCOPE="all"  # Default to classifying entire ecosystem
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      ;;
+    -v|--verbose)
+      VERBOSE=true
+      shift
+      ;;
+    -d|--dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    -f|--force)
+      FORCE=true
+      shift
+      ;;
+    -c|--clean)
+      CLEAN=true
+      shift
+      ;;
+    -p|--public)
+      SCOPE="public"
+      shift
+      ;;
+    -l|--local|--private)
+      SCOPE="local"
+      shift
+      ;;
+    -a|--all)
+      SCOPE="all"
+      shift
+      ;;
+    -*)
+      error "Unknown option: $1"
+      usage
+      ;;
+    *)
+      TARGET_DIR="$1"
+      shift
+      ;;
+  esac
+done
+
+# Clean mode - remove all marker files
+if [[ "$CLEAN" == "true" ]]; then
+  header "🧹 Cleaning Marker Files"
+
+  # Determine which directories to clean based on scope
+  local dirs_to_clean=()
+  if [[ "$SCOPE" == "public" ]]; then
+    dirs_to_clean=("$DOTFILES_ROOT")
+  elif [[ "$SCOPE" == "local" ]]; then
+    dirs_to_clean=("$DOTLOCAL_DIR")
+  else
+    # All - clean both
+    dirs_to_clean=("$DOTFILES_ROOT" "$DOTLOCAL_DIR")
+  fi
+
+  for search_dir in "${dirs_to_clean[@]}"; do
+    if [[ -d "$search_dir" ]]; then
+      find "$search_dir" -name ".microdot.type" -type f 2>/dev/null | while read marker; do
+        dir=$(dirname "$marker")
+        if [[ "$DRY_RUN" == "true" ]]; then
+          info "Would remove: $marker"
+        else
+          rm -f "$marker"
+          success "Removed marker from $(basename "$dir")"
+        fi
+        processed=$((processed + 1))
+      done
+    fi
+  done
+
+  summary "Cleanup" "$processed" "0" "0"
+  exit 0
+fi
+
+# Analyze directory function
+analyze_directory() {
+  local dir="$1"
+  local dir_name=$(basename "$dir")
+
+  # Skip non-directories and special cases
+  if [[ ! -d "$dir" ]]; then
+    return
+  fi
+
+  # Skip markdown files (shouldn't happen but being safe)
+  if [[ "$dir_name" =~ \.(md|MD|markdown)$ ]]; then
+    return
+  fi
+
+  # Skip infrastructure symlinks
+  if [[ -L "$dir" ]]; then
+    [[ "$VERBOSE" == "true" ]] && info "Skipping symlink: $dir_name"
+    return
+  fi
+
+  # Skip .git and other hidden directories (except .dotlocal itself)
+  if [[ "$dir_name" == .* && "$dir_name" != ".dotlocal" ]]; then
+    [[ "$VERBOSE" == "true" ]] && info "Skipping hidden: $dir_name"
+    return
+  fi
+
+  # Analysis variables
+  local type=""
+  local has_install=false
+  local has_tests=false
+  local has_completions=false
+  local zsh_count=0
+  local is_symlink_dir=false
+  local description=""
+
+  # Check for install.sh
+  if [[ -f "$dir/install.sh" || -x "$dir/install.sh" ]]; then
+    has_install=true
+  fi
+
+  # Check for __tests__ directory
+  if [[ -d "$dir/__tests__" ]]; then
+    has_tests=true
+  fi
+
+  # Check for completion.zsh
+  if [[ -f "$dir/completion.zsh" ]]; then
+    has_completions=true
+  fi
+
+  # Count .zsh files
+  zsh_count=$(find "$dir" -maxdepth 1 -name "*.zsh" -type f 2>/dev/null | wc -l | tr -d ' ')
+
+  # Check if it's a .symlink directory
+  if [[ "$dir_name" == *.symlink ]]; then
+    is_symlink_dir=true
+  fi
+
+  # Determine type based on characteristics
+  if [[ "$is_symlink_dir" == "true" ]]; then
+    type="private"
+    description="Private configuration directory"
+  elif [[ "$dir_name" == "ssh.symlink" || "$dir_name" == "ssh" ]]; then
+    type="private"
+    description="SSH keys and configuration"
+  elif [[ "$has_install" == "true" || "$has_tests" == "true" || $zsh_count -ge 2 ]]; then
+    type="microdot"
+    description="Self-contained configuration microservice"
+  elif [[ $zsh_count -eq 1 || -f "$dir/setup.sh" ]]; then
+    type="config"
+    description="Simple configuration"
+  elif [[ "$dir_name" == "bin" ]]; then
+    type="config"
+    description="Binary executables and scripts"
+  elif [[ "$dir_name" == "core" || "$dir_name" == "docs" ]]; then
+    # Infrastructure symlinks - skip
+    [[ "$VERBOSE" == "true" ]] && info "Skipping infrastructure: $dir_name"
+    return
+  elif [[ "$dir_name" =~ \.(md|MD)$ ]]; then
+    # Documentation symlinks - skip
+    [[ "$VERBOSE" == "true" ]] && info "Skipping documentation: $dir_name"
+    return
+  else
+    type="config"
+    description="Configuration files"
+  fi
+
+  # Create marker file content
+  local marker_content="# .microdot.type - Directory classification marker
+type: $type
+name: $dir_name
+description: $description"
+
+  if [[ "$type" == "microdot" ]]; then
+    marker_content="$marker_content
+has_install: $has_install
+has_tests: $has_tests
+has_completions: $has_completions
+zsh_files: $zsh_count"
+  elif [[ "$type" == "private" ]]; then
+    marker_content="$marker_content
+warning: Contains private/sensitive data"
+  fi
+
+  marker_content="$marker_content
+created: $(date +%Y-%m-%d)
+generated_by: dots-classify"
+
+  # Handle marker file
+  local marker_file="$dir/.microdot.type"
+
+  if [[ -f "$marker_file" && "$FORCE" != "true" ]]; then
+    # Read the existing type from the marker file
+    existing_type=$(grep "^type:" "$marker_file" 2>/dev/null | cut -d' ' -f2)
+    # Always show the type - it's essential information
+    warning "Marker exists for $dir_name [${existing_type:-unknown}] (use -f to overwrite)"
+    warnings=$((warnings + 1))
+  elif [[ "$DRY_RUN" == "true" ]]; then
+    info "Would create $type marker for $dir_name"
+    if [[ "$VERBOSE" == "true" ]]; then
+      echo "$marker_content" | sed 's/^/  /'
+    fi
+    processed=$((processed + 1))
+  else
+    echo "$marker_content" > "$marker_file"
+    success "Created $type marker for $dir_name"
+    processed=$((processed + 1))
+  fi
+}
+
+# Function to process a directory tree
+process_directory_tree() {
+  local root_dir="$1"
+  local section_name="$2"
+
+  if [[ ! -d "$root_dir" ]]; then
+    [[ "$VERBOSE" == "true" ]] && warning "Directory not found: $root_dir"
+    return
+  fi
+
+  subheader "$section_name"
+  [[ "$VERBOSE" == "true" ]] && info "Processing directories in: $root_dir"
+
+  for dir in "$root_dir"/*; do
+    if [[ -d "$dir" ]]; then
+      # Skip certain directories in public dotfiles
+      local basename="$(basename "$dir")"
+      if [[ "$root_dir" == "$DOTFILES_ROOT" ]] && [[ "$basename" == ".git" || "$basename" == ".dotlocal" ]]; then
+        [[ "$VERBOSE" == "true" ]] && info "Skipping system directory: $basename"
+        continue
+      fi
+      analyze_directory "$dir"
+    else
+      [[ "$VERBOSE" == "true" ]] && info "Skipping non-directory: $(basename "$dir")"
+    fi
+  done
+}
+
+# Main execution
+header "📋 Microdots Ecosystem Classification"
+
+if [[ "$DRY_RUN" == "true" ]]; then
+  warning "DRY RUN MODE - No files will be created"
+fi
+
+# Process based on scope
+if [[ -n "$TARGET_DIR" ]]; then
+  # Single directory mode
+  if [[ ! -d "$TARGET_DIR" ]]; then
+    error "Directory not found: $TARGET_DIR"
+    exit 1
+  fi
+  subheader "Analyzing Single Directory"
+  analyze_directory "$TARGET_DIR"
+elif [[ "$SCOPE" == "public" ]]; then
+  # Public only
+  process_directory_tree "$DOTFILES_ROOT" "Public Dotfiles (~/.dotfiles)"
+elif [[ "$SCOPE" == "local" ]]; then
+  # Local/private only
+  if [[ ! -d "$DOTLOCAL_DIR" ]]; then
+    error "Dotlocal directory not found: $DOTLOCAL_DIR"
+    exit 1
+  fi
+  process_directory_tree "$DOTLOCAL_DIR" "Private Dotlocal (~/.dotlocal)"
+else
+  # All (default) - process entire ecosystem
+  process_directory_tree "$DOTFILES_ROOT" "Public Dotfiles (~/.dotfiles)"
+  process_directory_tree "$DOTLOCAL_DIR" "Private Dotlocal (~/.dotlocal)"
+fi
+
+# Summary
+summary "Classification" "$processed" "$warnings" "$errors"
+
+if [[ "$DRY_RUN" == "true" ]]; then
+  info ""
+  info "This was a dry run. To apply changes, run without -d flag:"
+  info "  dots-classify"
+fi
+
+# Exit with appropriate code
+if [[ $errors -gt 0 ]]; then
+  exit 1
+elif [[ $warnings -gt 0 ]]; then
+  exit 0
+else
+  exit 0
+fi

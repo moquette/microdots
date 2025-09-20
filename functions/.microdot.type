@@ -1,0 +1,6 @@
+# .microdot.type - Directory classification marker
+type: config
+name: functions
+description: Configuration files
+created: 2025-09-20
+generated_by: dots-classify

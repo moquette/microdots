@@ -1,0 +1,6 @@
+# .microdot.type - Directory classification marker
+type: config
+name: git
+description: Simple configuration
+created: 2025-09-20
+generated_by: dots-classify

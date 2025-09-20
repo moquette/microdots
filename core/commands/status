@@ -107,6 +107,59 @@ if [[ -n "$discovered_path" ]]; then
         fi
         key_value "Topics" "$topic_count"
 
+        # Show categorized topics if marker files exist
+        marker_count=$(find "$discovered_path" -name ".microdot.type" 2>/dev/null | wc -l | tr -d ' ')
+        if [[ $marker_count -gt 0 ]]; then
+            # Count by type
+            microdot_count=$(grep -l "^type: microdot" "$discovered_path"/*/.microdot.type 2>/dev/null | wc -l | tr -d ' ')
+            config_count=$(grep -l "^type: config" "$discovered_path"/*/.microdot.type 2>/dev/null | wc -l | tr -d ' ')
+            private_count=$(grep -l "^type: private" "$discovered_path"/*/.microdot.type 2>/dev/null | wc -l | tr -d ' ')
+
+            if [[ $microdot_count -gt 0 || $config_count -gt 0 || $private_count -gt 0 ]]; then
+                blank
+                info "Organization:"
+                [[ $microdot_count -gt 0 ]] && list_item "Microdots: $microdot_count (self-contained microservices)"
+                [[ $config_count -gt 0 ]] && list_item "Configs: $config_count (simple configurations)"
+                [[ $private_count -gt 0 ]] && list_item "Private: $private_count (sensitive data)"
+
+                if [[ "$verbose" == "true" ]]; then
+                    blank
+                    # List microdots
+                    if [[ $microdot_count -gt 0 ]]; then
+                        info "Microdots:"
+                        for marker in "$discovered_path"/*/.microdot.type; do
+                            if grep -q "^type: microdot" "$marker" 2>/dev/null; then
+                                dir_name=$(basename "$(dirname "$marker")")
+                                list_item "$dir_name"
+                            fi
+                        done | sort
+                    fi
+
+                    # List configs
+                    if [[ $config_count -gt 0 ]]; then
+                        info "Configs:"
+                        for marker in "$discovered_path"/*/.microdot.type; do
+                            if grep -q "^type: config" "$marker" 2>/dev/null; then
+                                dir_name=$(basename "$(dirname "$marker")")
+                                list_item "$dir_name"
+                            fi
+                        done | sort
+                    fi
+
+                    # List private
+                    if [[ $private_count -gt 0 ]]; then
+                        info "Private:"
+                        for marker in "$discovered_path"/*/.microdot.type; do
+                            if grep -q "^type: private" "$marker" 2>/dev/null; then
+                                dir_name=$(basename "$(dirname "$marker")")
+                                list_item "$dir_name (⚠️ contains sensitive data)"
+                            fi
+                        done | sort
+                    fi
+                fi
+            fi
+        fi
+
         if [[ "$verbose" == "true" ]]; then
             # Show discovery precedence path
             info "Discovery precedence resolution:"

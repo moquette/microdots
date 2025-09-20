@@ -30,6 +30,7 @@ Commands:
   install               Install all topics and their configurations
   relink                Recreate all symlinks with local precedence
   status                Show dotfiles configuration and status
+  classify              Classify directories in dotlocal (microdot/config/private)
   provision             Complete system provisioning (install + config + maintenance)
   maintenance           Perform maintenance tasks (update, clean, health checks)
   repair-infrastructure Repair dotlocal infrastructure symlinks
@@ -91,7 +92,16 @@ case "$COMMAND" in
       exit 1
     fi
     ;;
-    
+
+  classify)
+    if [ -f "$COMMANDS_DIR/classify" ]; then
+      exec "$COMMANDS_DIR/classify" "$@"
+    else
+      error "Classify command not found"
+      exit 1
+    fi
+    ;;
+
   maintenance)
     if [ -f "$COMMANDS_DIR/maintenance" ]; then
       exec "$COMMANDS_DIR/maintenance" "$@"

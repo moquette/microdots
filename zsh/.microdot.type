@@ -1,0 +1,10 @@
+# .microdot.type - Directory classification marker
+type: microdot
+name: zsh
+description: Self-contained configuration microservice
+has_install: false
+has_tests: false
+has_completions: true
+zsh_files: 3
+created: 2025-09-20
+generated_by: dots-classify

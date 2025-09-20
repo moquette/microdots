@@ -1,0 +1,10 @@
+# .microdot.type - Directory classification marker
+type: microdot
+name: homebrew
+description: Self-contained configuration microservice
+has_install: true
+has_tests: false
+has_completions: false
+zsh_files: 2
+created: 2025-09-20
+generated_by: dots-classify
